@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+pub mod config;
 
 #[derive(Parser)]
 #[command(name = "work-os")]
@@ -13,6 +14,16 @@ pub enum Commands {
     Hello {
         #[arg(short, long)]
         name: String,
+    },
+
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
     }
 }
 
+#[derive(Subcommand)]
+pub enum ConfigCommands {
+    Init,
+    Show,
+}
