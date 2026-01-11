@@ -1,5 +1,5 @@
-use crate::models::config::*;
 use crate::error::Result;
+use crate::models::config::*;
 use std::io::{self, Write};
 
 pub async fn init() -> Result<()> {
@@ -14,7 +14,12 @@ pub async fn init() -> Result<()> {
     let token = prompt("Github Personal Access Token: ")?;
     let username = prompt("Github Username: ")?;
 
-    config.github = Some(GitHubConfig { token, username });
+    config.github = Some(GitHubConfig {
+        token,
+        username,
+        include_orgs: Vec::new(),
+        include_repos: Vec::new(),
+    });
 
     config.save()?;
 

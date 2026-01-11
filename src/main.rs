@@ -1,66 +1,76 @@
 mod cli;
+mod core;
 mod error;
 mod models;
+mod plugins;
 
-use cli::{Cli, Commands, ConfigCommands};
-use clap::{Parser};
+use clap::Parser;
+use cli::{AuthCommands, Cli, Commands, ConfigCommands};
+use colored::*;
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
-    if let Err(e) = run(cli).await {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
-}
 
-async fn run(cli: Cli) -> error::Result<()> {
-    match cli.command {
-        Commands::Hello { name } => {
-            let message = greet_user(name)?;
-            println!("{}", message);
-            Ok(())
-        }
+    let result = match cli.command {
+        Commands::Hello { name } => greet_user(name),
         Commands::Config { command } => match command {
             ConfigCommands::Init => cli::config::init().await,
             ConfigCommands::Show => cli::config::show().await,
         },
+        Commands::Auth { command } => match command {
+            AuthCommands::Github => cli::auth::test_github().await,
+        },
+        Commands::Sync { json, plugins: _ } => cli::sync::run(json).await,
+    };
+
+    if let Err(e) = result {
+        eprintln!("{}: {}", "Error".red().bold(), e);
+        std::process::exit(1);
     }
 }
 
-fn greet_user(name: String) -> error::Result<String> {
+fn greet_user(name: String) -> error::Result<()> {
     if name.is_empty() {
-     return Err(error::WorkOsError::Config("Name is required".to_string()));
+        return Err(error::WorkOsError::Config("Name is required".to_string()));
     }
-    Ok(format!("Hello, {}! 👋", name))
- }
+
+    println!("Hello, {}! 👋", name);
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
-    use tokio::time::{sleep, Duration};
-
+    use reqwest::Client;
+    use serde_json::Value;
     #[tokio::test]
-    async fn test_async_basic() {
-        println!("Start async task");
+    async fn test_http_request() {
+        let client = Client::new();
+        let response = client
+            .get("https://api.github.com/zen")
+            .header("User-Agent", "work-os/0.1.0")
+            .send()
+            .await
+            .unwrap();
 
-        sleep(Duration::from_secs(1)).await;
-
-        println!("Async task completed");
+        let text: String = response.text().await.unwrap();
+        println!("GitHub Zen: {}", text);
+        assert!(!text.is_empty());
     }
 
     #[tokio::test]
-    async fn test_concurrent_ops() {
-        println!("Start two task concurrently");
+    async fn test_json_parsing() {
+        let client = Client::new();
+        let response = client
+            .get("https://api.github.com/users/github")
+            .header("User-Agent", "work-os/0.1.0")
+            .send()
+            .await
+            .unwrap();
 
-        let (result1, result2) = tokio::join!(fetch_date("Task 1"), fetch_date("Task 2"));
+        let user: Value = response.json().await.unwrap();
 
-        println!("Result 1: {} Result 2: {}", result1, result2);
-
-        println!("Concurrent tasks completed");
-    }
-
-    async fn fetch_date(task_name: &str) -> String {
-        sleep(Duration::from_secs(1)).await;
-        format!("{} completed", task_name)
+        println!("GitHub User: {}", user["name"]);
+        assert_eq!(user["login"].as_str().unwrap(), "github");
     }
 }

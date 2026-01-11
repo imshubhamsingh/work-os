@@ -7,6 +7,9 @@ pub enum WorkOsError {
     
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("GitHub API error: {0}")]
+    GitHub(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkOsError>;
