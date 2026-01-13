@@ -1,0 +1,63 @@
+use crate::core::plugin::Plugin;
+use crate::core::task::Task;
+use crate::error::Result;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+pub struct PluginRegistry {
+    plugins: HashMap<String, Arc<Box<dyn Plugin>>>,
+}
+
+impl PluginRegistry {
+    pub fn new() -> Self {
+        Self {
+            plugins: HashMap::new(),
+        }
+    }
+
+    pub fn register(&mut self, plugin: Box<dyn Plugin>) {
+        self.plugins
+            .insert(plugin.metadata().id.to_string(), Arc::new((plugin)));
+    }
+
+    pub fn get(&self, id: &str) -> Option<Arc<Box<dyn Plugin>>> {
+        self.plugins.get(id).cloned()
+    }
+
+    pub fn get_all(&self) -> Vec<Arc<Box<dyn Plugin>>> {
+        self.plugins.values().cloned().collect()
+    }
+
+    pub fn get_all_configured(&self) -> Vec<Arc<Box<dyn Plugin>>> {
+        self.plugins
+            .values()
+            .filter(|plugin| plugin.is_configured())
+            .cloned()
+            .collect()
+    }
+
+    pub fn list_ids(&self) -> Vec<String> {
+        self.plugins.keys().cloned().collect()
+    }
+
+    pub async fn fetch_tasks_from(&self, plugin_ids: &[String]) -> Result<Vec<Task>> {
+        let mut tasks = Vec::new();
+        for plugin_id in plugin_ids {
+            if let Some(plugin) = self.get(plugin_id) {
+                match plugin.fetch_tasks().await {
+                    Ok(task) => tasks.extend(task),
+                    Err(e) => {
+                        eprintln!("Error fetching from {}: {}", plugin.metadata().name, e);
+                    }
+                }
+            }
+        }
+        Ok(tasks)
+    }
+}
+
+impl Default for PluginRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

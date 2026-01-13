@@ -1,27 +1,35 @@
 use crate::core::task::{PersonRole, Priority, Task, TaskType};
 use crate::error::{Result, WorkOsError};
 use crate::models::config::WorkOsConfig;
-use crate::plugins::github::GithubClient;
+use crate::plugins::create_registry;
 
 use colored::*;
 
-pub async fn run(json_output: bool) -> Result<()> {
+pub async fn run(json_output: bool, plugin_filter: Option<Vec<String>>) -> Result<()> {
     let config = WorkOsConfig::load()?;
-    let mut all_tasks: Vec<Task> = Vec::new();
+    let registry = create_registry(&config)?;
 
-    if let Some(github_config) = config.github {
-        println!("{}", "Fetching from GitHub...".dimmed());
-        let github_client = GithubClient::new(&github_config)?;
-        match github_client.get_all_tasks().await {
-            Ok(tasks) => {
-                println!("  {} Found {} tasks", "✓".green(), tasks.len());
-                all_tasks.extend(tasks);
-            }
-            Err(e) => {
-                println!("  {} GitHub error: {}", "✗".red(), e);
-            }
-        }
+    println!("{}", "Plugins:".dimmed());
+
+    for plugin in registry.get_all() {
+        let meta = plugin.metadata();
+        let status = if plugin.is_configured() {
+            "✓ configured".green()
+        } else {
+            "✗ not configured".red()
+        };
+
+        println!("  {} {} {}", meta.icon, meta.name, status);
     }
+
+    println!();
+
+    println!("{}", "Fetching tasks...".dimmed());
+
+    let all_tasks = match plugin_filter {
+        Some(plugins) => registry.fetch_tasks_from(&plugins).await?,
+        None => registry.fetch_tasks_from(&registry.list_ids()).await?,
+    };
 
     if all_tasks.is_empty() {
         println!("\n{}", "No tasks found!".yellow());
@@ -61,6 +69,11 @@ fn print_tasks(tasks: &[Task]) {
         .filter(|t| t.priority == Priority::Low)
         .collect();
 
+    let rest: Vec<&Task> = tasks
+        .iter()
+        .filter(|t| t.priority == Priority::Unknown)
+        .collect();
+
     if !critical.is_empty() {
         println!("\n{}", "🔴 CRITICAL".red().bold());
         for task in critical {
@@ -85,6 +98,13 @@ fn print_tasks(tasks: &[Task]) {
     if !low.is_empty() {
         println!("\n{}", "🟢 LOW PRIORITY".green().bold());
         for task in low {
+            print_task(task);
+        }
+    }
+
+    if !rest.is_empty() {
+        println!("\n{}", "UNKNOWN PRIORITY".yellow().bold());
+        for task in rest {
             print_task(task);
         }
     }

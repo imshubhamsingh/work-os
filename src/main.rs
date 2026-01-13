@@ -21,7 +21,7 @@ async fn main() {
         Commands::Auth { command } => match command {
             AuthCommands::Github => cli::auth::test_github().await,
         },
-        Commands::Sync { json, plugins: _ } => cli::sync::run(json).await,
+        Commands::Sync { json, plugins } => cli::sync::run(json, plugins).await,
     };
 
     if let Err(e) = result {

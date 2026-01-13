@@ -140,7 +140,7 @@ impl GithubClient {
                     comments: item.comments,
                     review_state: None,
                 }))
-                .with_priority(priority)
+                .with_priority(Priority::Unknown)
             })
             .collect();
 
