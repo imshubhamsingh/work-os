@@ -20,6 +20,7 @@ async fn main() {
         },
         Commands::Auth { command } => match command {
             AuthCommands::Github => cli::auth::test_github().await,
+            AuthCommands::Slack => cli::auth::test_slack().await,
         },
         Commands::Sync { json, plugins } => cli::sync::run(json, plugins).await,
     };

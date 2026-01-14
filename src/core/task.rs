@@ -66,7 +66,7 @@ pub enum PersonRole {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskMetadata {
     GitHub(GitHubMetadata),
-    // Slack(SlackMetadata),
+    Slack(SlackMetadata),
     // Jira(JiraMetadata),
     None,
 }
@@ -78,6 +78,13 @@ pub struct GitHubMetadata {
     pub state: String,
     pub comments: u32,
     pub review_state: Option<String>,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlackMetadata {
+    pub channel: String,
+    pub thread_ts: String
 }
 
 impl Task {

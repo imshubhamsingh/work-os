@@ -6,20 +6,43 @@ pub async fn init() -> Result<()> {
     println!("Work OS Configuration Setup\n");
     let mut config = WorkOsConfig {
         github: None,
+        slack: None,
         output: OutputConfig::default(),
         sync: SyncConfig::default(),
     };
 
     println!("Github Configuration:");
-    let token = prompt("Github Personal Access Token: ")?;
-    let username = prompt("Github Username: ")?;
+    let setup_github = prompt("Configure Github? (y/n): ")?;
+    if setup_github.to_lowercase() == "y" {
+        let token = prompt("  GitHub Personal Access Token: ")?;
+        let username = prompt("  GitHub Username: ")?;
 
-    config.github = Some(GitHubConfig {
-        token,
-        username,
-        include_orgs: Vec::new(),
-        include_repos: Vec::new(),
-    });
+        config.github = Some(GitHubConfig {
+            token,
+            username,
+            include_orgs: Vec::new(),
+            include_repos: Vec::new(),
+        });
+    }
+
+    println!("Slack Configuration:");
+    let setup_slack = prompt("Configure Slack? (y/n): ")?;
+    if setup_slack.to_lowercase() == "y" {
+        let token = prompt("  Slack User Token (xoxp-...): ")?;
+        config.slack = Some(SlackConfig {
+            token,
+            keywords: vec![
+                "todo".to_string(),
+                "action item".to_string(),
+                "can you".to_string(),
+                "please".to_string(),
+                "urgent".to_string(),
+                "asap".to_string(),
+            ],
+            channels: Vec::new(),
+            max_messages_per_channel: 50,
+        });
+    }
 
     config.save()?;
 

@@ -46,4 +46,5 @@ pub enum ConfigCommands {
 #[derive(Subcommand)]
 pub enum AuthCommands {
     Github,
+    Slack,
 }

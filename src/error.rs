@@ -10,6 +10,9 @@ pub enum WorkOsError {
 
     #[error("GitHub API error: {0}")]
     GitHub(String),
+
+    #[error("Slack API error: {0}")]
+    Slack(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkOsError>;

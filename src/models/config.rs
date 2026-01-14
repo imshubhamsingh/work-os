@@ -5,6 +5,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkOsConfig {
     pub github: Option<GitHubConfig>,
+    pub slack: Option<SlackConfig>,
     pub output: OutputConfig,
     pub sync: SyncConfig,
 }
@@ -15,6 +16,14 @@ pub struct GitHubConfig {
     pub username: String,
     pub include_orgs: Vec<String>,
     pub include_repos: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlackConfig {
+    pub token: String,
+    pub keywords: Vec<String>,
+    pub channels: Vec<String>,
+    pub max_messages_per_channel: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

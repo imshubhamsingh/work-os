@@ -118,8 +118,6 @@ impl GithubClient {
                 let created_at = item.created_at;
                 let updated_at = item.updated_at;
 
-                let priority = determine_priority(self, created_at, updated_at, &item.user.login);
-
                 Task::new(
                     "github",
                     TaskType::PullRequest,
@@ -165,25 +163,6 @@ impl GithubClient {
             .map_err(|e| WorkOsError::GitHub(e.to_string()))?;
         Ok(user.login == self.username)
     }
-}
-
-const DAYS_TO_CRITICAL: i64 = 5;
-
-fn determine_priority(
-    client: &GithubClient,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-    author: &str,
-) -> Priority {
-    if updated_at.signed_duration_since(created_at) > Duration::days(DAYS_TO_CRITICAL) {
-        return Priority::Critical;
-    }
-
-    if author == client.username {
-        return Priority::High;
-    }
-
-    Priority::Medium
 }
 
 pub enum SearchType {

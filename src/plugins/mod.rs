@@ -1,9 +1,11 @@
 pub mod github;
+pub mod slack;
 
 use crate::error::Result;
 use crate::core::registry::PluginRegistry;
 use crate::models::config::WorkOsConfig;
 use crate::plugins::github::GithubPlugin;
+use crate::plugins::slack::SlackPlugin;
 
 pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     let mut registry = PluginRegistry::new();
@@ -16,7 +18,14 @@ pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     }
     registry.register(Box::new(github_plugin));
 
-    // TODO: Register Slack plugin
+    // Register slack plugin
+    let mut slack_plugin = SlackPlugin::new();
+
+    if let Some(ref slack_config) = config.slack {
+        slack_plugin.configure(slack_config.clone())?;
+    }
+    registry.register(Box::new(slack_plugin));
+
     // TODO: Register Jira plugin
 
     Ok(registry)
