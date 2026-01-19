@@ -3,6 +3,7 @@ use crate::error::{Result, WorkOsError};
 use crate::models::config::WorkOsConfig;
 use crate::plugins::create_registry;
 
+use chrono::{DateTime, Utc};
 use colored::*;
 
 pub async fn run(json_output: bool, plugin_filter: Option<Vec<String>>) -> Result<()> {
@@ -127,30 +128,74 @@ fn print_task(task: &Task) {
 
     println!("{} {} {}", icon, source, task.title.bold());
 
+    if let Some(description) = &task.description {
+        for line in description.lines() {
+            println!("           {}", line.dimmed());
+        }
+    }
+
     let mut metadata: Vec<String> = Vec::new();
 
     if let Some(author) = task.people.iter().find(|p| p.role == PersonRole::Author) {
         metadata.push(format!("by @{}", author.username).dimmed().to_string());
     }
 
-    let age = chrono::Utc::now() - task.created_at;
-    let age_str = if age.num_days() > 30 {
-        format!("created {}m ago", (age.num_days() / 30))
-    } else if age.num_days() > 0 {
-        format!("created {}d ago", age.num_days())
-    } else if age.num_hours() > 0 {
-        format!("created {}h", age.num_hours())
-    } else if age.num_minutes() > 0 {
-        format!("created {}m", age.num_minutes())
-    } else {
-        format!("created just now")
-    };
+   
 
-    metadata.push(age_str.dimmed().to_string());
+    metadata.push(format_duration(task.created_at).dimmed().to_string());
 
     if !metadata.is_empty() {
         println!("     └─ {}", metadata.join(" · "));
     }
 
     println!("     {}", task.url.dimmed());
+}
+
+
+fn format_duration(date: DateTime<Utc>) -> String {
+    let mut duration_in_minutes = (Utc::now().timestamp() - date.timestamp()) / 60;
+
+    let minutes_in_year = 60 * 24 * 365;
+    let minutes_in_month = 60 * 24 * 30;
+    let minutes_in_week = 60 * 24 * 7;
+    let minutes_in_day = 60 * 24;
+    let minutes_in_hour = 60;
+
+    let year = duration_in_minutes / minutes_in_year;
+    duration_in_minutes %= minutes_in_year;
+    let month = duration_in_minutes / minutes_in_month;
+    duration_in_minutes %= minutes_in_month;
+    let week = duration_in_minutes / minutes_in_week;
+    duration_in_minutes %= minutes_in_week;
+    let day = duration_in_minutes / minutes_in_day;
+    duration_in_minutes %= minutes_in_day;
+    let hour = duration_in_minutes / minutes_in_hour;
+    duration_in_minutes %= minutes_in_hour;
+    let minute = duration_in_minutes;
+
+   let mut parts = Vec::new();
+   if year > 0 {
+    parts.push(format!("{}y", year));
+   }
+   if month > 0 {
+    parts.push(format!("{}m", month));
+   }
+   if week > 0 {
+    parts.push(format!("{}w", week));
+   }
+   if day > 0 {
+    parts.push(format!("{}d", day));
+   }
+   if hour > 0 {
+    parts.push(format!("{}h", hour));
+   }
+   if minute > 0 {
+    parts.push(format!("{}m", minute));
+   }
+   
+   if parts.is_empty() {
+    "just now".to_string()
+   } else {
+    format!("{} ago", parts.join(" "))
+   }
 }
