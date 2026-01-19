@@ -2,14 +2,11 @@ use regex::Regex;
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-// use regex::Regex;
 use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use std::fmt::Write;
 
-use crate::core::task::{
-    Person, PersonRole, Priority, SlackMetadata, Task, TaskMetadata, TaskType,
-};
+use crate::core::task::{Task, TaskType};
 use crate::error::{Result, WorkOsError};
 use crate::models::config::SlackConfig;
 use crate::plugins::slack::model::*;
@@ -77,10 +74,8 @@ impl SlackClient {
             .map(|dt| dt.format("%Y-%m-%d").to_string())
             .unwrap_or_default();
 
-        println!("{}", after_date);
         let search_message_url =
             format!("search.messages?query=<@{}> after:{}", user_id, after_date);
-        println!("URL {}", search_message_url);
         let mentioned_messages: SlackResponse<SlackSearch> = self.get(&search_message_url).await?;
 
         if !mentioned_messages.ok {
@@ -91,13 +86,11 @@ impl SlackClient {
             .data
             .map(|d| d.messages.matches)
             .unwrap_or_default();
-        println!("Len {}", matches.len());
         if matches.is_empty() {
             return Ok(Vec::new());
         }
 
         for result in matches.iter() {
-            println!("{}", result.kind);
             let updated_at: DateTime<Utc> = DateTime::parse_from_str(&result.ts, "%s.%f")
                 .unwrap()
                 .into();
@@ -116,17 +109,11 @@ impl SlackClient {
                         "conversations.replies?channel={}&ts={}&limit=1000",
                         result.channel.id, parent_thread_ts,
                     );
-                    println!("{}", thread_message_url);
                     let thread_messages: SlackResponse<SlackThread> =
                         self.get(&thread_message_url).await?;
-                    match serde_json::to_string_pretty(&thread_messages) {
-                        Ok(json) => println!("{}", json),
-                        _ => println!("nothing"),
-                    }
 
                     let mut thread = thread_messages.data.map(|d| d.messages).unwrap_or_default();
 
-                    println!("thread length ----- {}", thread.len());
                     let _ = writeln!(
                         description,
                         "\nThread messages (first and last 6 messages if present): ┐",
@@ -276,8 +263,6 @@ impl SlackClient {
                 }
             }
 
-            println!("Description: {}", description);
-
             let update_at: DateTime<Utc> =
                 DateTime::parse_from_str(&messages[messages.len() - 1].ts, "%s.%f")
                     .unwrap()
@@ -337,7 +322,6 @@ impl SlackClient {
                 if let Some(author) = self.get_user_info(author_id).await? {
                     use std::fmt::Write;
                     let formate_message = self.replace_user_id_with_handle(&msg.text).await?;
-                    println!("{}", &formate_message);
                     let _ = writeln!(description, "{}: {}", author.name, &formate_message);
                 }
             }
@@ -390,9 +374,7 @@ impl SlackClient {
 
         for cap in reg.captures_iter(description) {
             let user_id = &cap[1];
-            let mention = format!("<@{}>", user_id);
             let full_match = cap.get(0).unwrap().as_str();
-            println!("mention {}", &mention);
             if let Some(user) = self.get_user_info(user_id).await? {
                 let handle = format!("@{}", user.name);
                 result = result.replace(full_match, &handle)
@@ -410,25 +392,22 @@ impl SlackClient {
         let url = format!("users.info?user={}", user_id);
         let response: SlackResponse<UsersInfoData> = match self.get(&url).await {
             Ok(resp) => resp,
-            Err(err) => {
-                println!("Slack request failed for {}: {}", user_id, err);
+            Err(_) => {
                 self.user_cache.insert(user_id.to_string(), None);
                 return Ok(None);
             }
         };
 
         if !response.ok {
-            let slack_error = response
+            let _ = response
                 .error
                 .unwrap_or_else(|| "unknown_slack_error".into());
 
-            println!("Slack returned error for {}: {}", user_id, slack_error);
             self.user_cache.insert(user_id.to_string(), None);
             return Ok(None);
         }
 
         let Some(user) = response.data.map(|d| d.user) else {
-            println!("Slack returned ok but no user payload for {}", user_id);
             self.user_cache.insert(user_id.to_string(), None);
             return Ok(None);
         };
