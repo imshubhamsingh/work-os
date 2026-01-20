@@ -36,6 +36,7 @@ pub enum TaskType {
     Review,
     Message,
     Ticket,
+    Statistics,
     Other(String),
 }
 
@@ -78,6 +79,14 @@ pub struct GitHubMetadata {
     pub state: String,
     pub comments: u32,
     pub review_state: Option<String>,
+    pub review_counts: Option<ReviewCounts>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ReviewCounts {
+    pub approved: u32,
+    pub changes_requested: u32,
+    pub commented: u32,
 }
 
 
@@ -149,6 +158,7 @@ impl TaskType {
             TaskType::Review => "review",
             TaskType::Message => "message",
             TaskType::Ticket => "ticket",
+            TaskType::Statistics => "statistics",
             TaskType::Other(name) => name,
         }
     }

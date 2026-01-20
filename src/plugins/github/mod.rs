@@ -1,4 +1,5 @@
 mod client;
+pub mod model;
 
 pub use crate::core::plugin::{ConfigField, Plugin, PluginMetadata};
 use crate::core::task::Task;

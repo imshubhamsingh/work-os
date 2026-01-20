@@ -12,7 +12,12 @@ pub struct SlackResponse<T> {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Channel {
+pub struct ConversationsInfoData {
+    pub channel: SlackChannel
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SlackChannel {
     pub id: String,
     #[serde(default)]
     pub name: String,
@@ -26,10 +31,10 @@ pub struct Channel {
     pub is_mpim: bool,
     #[serde(default)]
     pub user: Option<String>,
-    pub purpose: Option<Purpose>,
+    pub purpose: Option<SlackChannelPurpose>,
 }
-#[derive(Debug, Deserialize)]
-pub struct Purpose {
+#[derive(Clone, Debug, Deserialize)]
+pub struct SlackChannelPurpose {
     #[serde(default)]
     pub value: String,
     #[serde(default)]
@@ -62,7 +67,7 @@ pub struct SlackMessage {
 
 #[derive(Debug, Deserialize)]
 pub struct ConversationsListData {
-    pub channels: Vec<Channel>,
+    pub channels: Vec<SlackChannel>,
 }
 
 #[derive(Debug, Deserialize)]
