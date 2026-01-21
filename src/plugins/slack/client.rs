@@ -32,7 +32,7 @@ impl SlackClient {
             channels: config.channels.clone(),
             max_messages_per_channel: config.max_messages_per_channel,
             user_cache: HashMap::new(),
-            channel_cache: HashMap::new()
+            channel_cache: HashMap::new(),
         })
     }
 
@@ -146,10 +146,10 @@ impl SlackClient {
             let updated_at = latest_message_ts(&messages);
 
             let channel_name: String = self
-            .get_channel_info(&channel_id)
-            .await?
-            .and_then(|c| Some(c.name))
-            .unwrap_or_else(|| channel_id.clone());
+                .get_channel_info(&channel_id)
+                .await?
+                .and_then(|c| Some(c.name))
+                .unwrap_or_else(|| channel_id.clone());
 
             let task = Self::build_task(
                 &channel_id,
@@ -180,8 +180,12 @@ impl SlackClient {
             .map(|dt| (dt - Duration::hours(24)).format("%Y-%m-%d").to_string())
             .unwrap_or_default();
 
+        let before_date = DateTime::from_timestamp(oldest_timestamp, 0)
+            .map(|dt| (dt + Duration::hours(24)).format("%Y-%m-%d").to_string())
+            .unwrap_or_default();
+
         let search_message_url =
-            format!("search.messages?query=<@{}> after:{}", user_id, after_date);
+            format!("search.messages?query=<@{}> after:{} before:{}", user_id, after_date, before_date);
         let mentioned_messages: SlackResponse<SlackSearch> = self.get(&search_message_url).await?;
 
         if !mentioned_messages.ok {
@@ -315,7 +319,7 @@ impl SlackClient {
         if let Some(cached) = self.channel_cache.get(channel_id) {
             return Ok(cached.clone());
         }
-    
+
         let url = format!("conversations.info?channel={}", channel_id);
         let response: SlackResponse<ConversationsInfoData> = match self.get(&url).await {
             Ok(resp) => resp,
@@ -324,17 +328,17 @@ impl SlackClient {
                 return Ok(None);
             }
         };
-    
+
         if !response.ok {
             self.channel_cache.insert(channel_id.to_string(), None);
             return Ok(None);
         }
-    
+
         let channel = response.data.map(|d| d.channel);
-    
+
         self.channel_cache
             .insert(channel_id.to_string(), channel.clone());
-    
+
         Ok(channel)
     }
 

@@ -16,6 +16,7 @@ pub struct GitHubConfig {
     pub username: String,
     pub include_orgs: Vec<String>,
     pub include_repos: Vec<String>,
+    pub bots: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,7 +60,6 @@ impl Default for SyncConfig {
 }
 
 impl WorkOsConfig {
-
     pub fn config_path() -> PathBuf {
         dirs::home_dir()
             .unwrap()
@@ -77,7 +77,7 @@ impl WorkOsConfig {
 
         let contents = std::fs::read_to_string(config_path)?;
         let config: WorkOsConfig = toml::from_str(&contents)
-        .map_err(|e| WorkOsError::Config(format!("Failed to parse config: {}", e)))?;
+            .map_err(|e| WorkOsError::Config(format!("Failed to parse config: {}", e)))?;
 
         Ok(config)
     }
@@ -88,8 +88,8 @@ impl WorkOsConfig {
 
         std::fs::create_dir_all(config_dir)?;
 
-        let contents = toml::to_string_pretty(self)
-            .map_err(|e| WorkOsError::Config(e.to_string()))?;
+        let contents =
+            toml::to_string_pretty(self).map_err(|e| WorkOsError::Config(e.to_string()))?;
 
         std::fs::write(&config_path, contents)?;
 

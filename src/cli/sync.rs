@@ -121,6 +121,7 @@ fn print_task(task: &Task) {
         TaskType::Review => "👀",
         TaskType::Message => "💬",
         TaskType::Ticket => "🎫",
+        TaskType::Statistics => "📊",
         TaskType::Other(_) => "📌",
     };
 
@@ -140,8 +141,6 @@ fn print_task(task: &Task) {
         metadata.push(format!("by @{}", author.username).dimmed().to_string());
     }
 
-   
-
     metadata.push(format_duration(task.created_at).dimmed().to_string());
 
     if !metadata.is_empty() {
@@ -150,7 +149,6 @@ fn print_task(task: &Task) {
 
     println!("     {}", task.url.dimmed());
 }
-
 
 fn format_duration(date: DateTime<Utc>) -> String {
     let mut duration_in_minutes = (Utc::now().timestamp() - date.timestamp()) / 60;
@@ -173,29 +171,29 @@ fn format_duration(date: DateTime<Utc>) -> String {
     duration_in_minutes %= minutes_in_hour;
     let minute = duration_in_minutes;
 
-   let mut parts = Vec::new();
-   if year > 0 {
-    parts.push(format!("{}y", year));
-   }
-   if month > 0 {
-    parts.push(format!("{}m", month));
-   }
-   if week > 0 {
-    parts.push(format!("{}w", week));
-   }
-   if day > 0 {
-    parts.push(format!("{}d", day));
-   }
-   if hour > 0 {
-    parts.push(format!("{}h", hour));
-   }
-   if minute > 0 {
-    parts.push(format!("{}m", minute));
-   }
-   
-   if parts.is_empty() {
-    "just now".to_string()
-   } else {
-    format!("{} ago", parts.join(" "))
-   }
+    let mut parts = Vec::new();
+    if year > 0 {
+        parts.push(format!("{}y", year));
+    }
+    if month > 0 {
+        parts.push(format!("{}m", month));
+    }
+    if week > 0 {
+        parts.push(format!("{}w", week));
+    }
+    if day > 0 {
+        parts.push(format!("{}d", day));
+    }
+    if hour > 0 {
+        parts.push(format!("{}h", hour));
+    }
+    if minute > 0 {
+        parts.push(format!("{}m", minute));
+    }
+
+    if parts.is_empty() {
+        "just now".to_string()
+    } else {
+        format!("{} ago", parts.join(" "))
+    }
 }

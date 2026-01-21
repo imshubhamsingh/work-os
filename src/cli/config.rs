@@ -22,6 +22,7 @@ pub async fn init() -> Result<()> {
             username,
             include_orgs: Vec::new(),
             include_repos: Vec::new(),
+            bots: Vec::new(),
         });
     }
 
