@@ -41,6 +41,7 @@ pub async fn init() -> Result<()> {
                 "asap".to_string(),
             ],
             channels: Vec::new(),
+            user_groups: Vec::new(),
             max_messages_per_channel: 50,
         });
     }

@@ -24,6 +24,7 @@ pub struct SlackConfig {
     pub token: String,
     pub keywords: Vec<String>,
     pub channels: Vec<String>,
+    pub user_groups: Vec<String>,
     pub max_messages_per_channel: usize,
 }
 

@@ -1,8 +1,8 @@
 pub mod github;
 pub mod slack;
 
-use crate::error::Result;
 use crate::core::registry::PluginRegistry;
+use crate::error::Result;
 use crate::models::config::WorkOsConfig;
 use crate::plugins::github::GithubPlugin;
 use crate::plugins::slack::SlackPlugin;
@@ -29,5 +29,4 @@ pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     // TODO: Register Jira plugin
 
     Ok(registry)
-
 }

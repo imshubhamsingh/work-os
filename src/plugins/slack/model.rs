@@ -13,7 +13,7 @@ pub struct SlackResponse<T> {
 
 #[derive(Debug, Deserialize)]
 pub struct ConversationsInfoData {
-    pub channel: SlackChannel
+    pub channel: SlackChannel,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -130,14 +130,15 @@ pub struct SlackSearchMessageMatchChannel {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SlackThread {
     pub messages: Vec<SlackThreadMessage>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SlackThreadMessage {
     pub text: String,
     pub user: String,
+    pub ts: String,
     pub reply_count: Option<u32>,
 }

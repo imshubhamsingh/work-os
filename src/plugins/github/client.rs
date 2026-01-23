@@ -345,7 +345,6 @@ impl GithubClient {
                 }
 
                 if self.is_bot(r.user.as_ref()) {
-                    println!("Review by vulcanho");
                     return None;
                 }
 
@@ -390,7 +389,6 @@ impl GithubClient {
                 }
 
                 if self.is_bot(Some(&c.user)) {
-                    println!("Review by vulcanho");
                     return None;
                 }
 

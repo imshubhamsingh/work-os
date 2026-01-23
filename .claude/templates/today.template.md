@@ -7,14 +7,15 @@ model: opus
 
 You are generating a concise daily work brief in Markdown from work-os raw Markdown data.
 
-You will receive the concatenated contents of all raw Markdown files from:
+You will read raw Markdown files matching **today's date only** from:
 
 Raw input directory: {{WORK_OS_DIR}}
 
 ```
-{{WORK_OS_DIR}}/raw/{YYYY-MM-DD}-{TIME_STAMP}.md
+{{WORK_OS_DIR}}/raw/{TODAY-DATE}-{TIME_STAMP}.md
 ```
 
+There may be multiple files for today (different sync timestamps) — read all of them. Do NOT read files from previous days.
 
 Each file contains semi-structured activity logs and task information from sources such as Slack and GitHub.
 
@@ -41,10 +42,23 @@ You must extract actionable items, ownership, URLs, risks, and context from this
 | Category | Rule |
 |------------|------|
 | Must Do | Directly owned by Shubham Singh (author, assignee, or explicitly requested). Break down into sub-tasks with validation steps. |
+| Release-Critical PRs | PRs that block an upcoming release/launch discussed in Slack. Include release name/date and PR status. |
 | Reviews | PR reviews explicitly pending by Shubham. Include time pending and requester. |
 | Follow-ups | Items waiting on others, scheduled, or blocked. Specify who/what is blocking. |
 | Context | Discussions Shubham is mentioned in but not owner. Group by topic. |
 | Learning | Patterns, insights, or process gaps observed from today's activities. Actionable observations only. |
+
+### Release Detection Logic
+
+When processing raw data, look for signals indicating an upcoming release/launch:
+- Slack messages mentioning "release", "launch", "go live", "deploy to prod", "ship", "target Friday" etc.
+- Timeline references like "by EOD", "tomorrow", "this week", "Friday release"
+- Testing discussions that indicate pre-release validation
+
+For each detected release:
+1. Identify all related open PRs from GitHub data (by repo, author, or Slack mentions)
+2. Cross-reference PR status (open, needs review, approved, merged)
+3. Flag any PRs that are NOT yet merged as release blockers
 
 ---
 
@@ -67,6 +81,15 @@ Generate Markdown using this exact structure:
   - [ ] [Sub-task detail if needed]
   - [ ] [Another sub-task detail]
 - [ ] [Another main task] — [link]
+
+---
+
+## 🚀 Release-Critical PRs
+
+### [Release Name] — Target: [Date/Timeline]
+| PR | Status | Owner | Blocker? |
+|----|--------|-------|----------|
+| [PR title](url) | Needs Review / Approved / Open | @author | Yes/No |
 
 ---
 
@@ -132,14 +155,21 @@ Generate Markdown using this exact structure:
    - Break down complex tasks into sub-bullets with [ ] checkboxes
    - Include specific links to Slack threads or PRs for context
    - Add validation steps or edge cases as sub-items
-6. For "Context — Awareness Only":
+6. For "Release-Critical PRs":
+   - Only include this section if a release/launch is mentioned in Slack messages
+   - Group PRs by release/project name
+   - Include ALL related open PRs from GitHub data, not just those owned by Shubham
+   - Mark "Blocker? Yes" for any PR that is not yet merged but required for release
+   - Include PR status: Open, Needs Review, Approved, Changes Requested
+   - Link to relevant Slack thread discussing the release timeline
+7. For "Context — Awareness Only":
    - Group related items under ### topic headers
    - Use descriptive topic names (e.g., "ILF Integration", "Clusters v2 Planning")
-7. For "Learning / Improvements":
+8. For "Learning / Improvements":
    - Extract insights about process gaps, documentation needs, or recurring patterns
    - Focus on actionable observations
-8. Prefer clarity over completeness
-9. Return ONLY the Markdown content
+9. Prefer clarity over completeness
+10. Return ONLY the Markdown content
 
 ---
 
@@ -171,11 +201,17 @@ For each archived brief, identify:
 
 ### Step 3: Read Today's Raw Data
 
-Read all raw Markdown files from:
+Read ONLY raw Markdown files matching today's date pattern:
 
 ```
-{{WORK_OS_DIR}}/raw/
+{{WORK_OS_DIR}}/raw/{TODAY-DATE}-*.md
 ```
+
+For example, if today is 2026-01-23, read only files like:
+- `2026-01-23-0943.md`
+- `2026-01-23-1430.md`
+
+**IMPORTANT:** Do NOT read files from previous days. There may be multiple files for today (different timestamps), read all of them. Ignore any files that don't match today's date prefix.
 
 ### Step 4: Generate Brief with Carryovers
 
