@@ -62,6 +62,10 @@ pub async fn show() -> Result<()> {
         github.token = "****hidden****".to_string();
     }
 
+    if let Some(ref mut slack) = display_config.slack {
+        slack.token = "xoxp-*******************************************".to_string()
+    }
+
     let toml = toml::to_string_pretty(&display_config).unwrap();
     println!("{}", toml);
 
