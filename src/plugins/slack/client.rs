@@ -91,22 +91,13 @@ impl SlackClient {
 
             let updated_at = latest_message_ts(&messages);
 
-            let mut task = Self::build_task(
+            let task = Self::build_task(
                 &channel.id,
                 format!("DM between you and {}", real_name),
                 format!("https://slack.com/archives/{}", channel.id),
                 description,
                 updated_at,
             );
-
-            task = task.with_metadata(TaskMetadata::Slack(SlackMetadata {
-                name: real_name,
-                is_channel: false,
-                is_mention: false,
-                is_dm: true,
-                is_mpim: false,
-                is_user_group: false,
-            }));
 
             tasks.push(task);
         }
@@ -136,22 +127,13 @@ impl SlackClient {
                 .map(|p| p.value.clone())
                 .unwrap_or_else(|| "Unknow Group DM".to_string());
 
-            let mut task = Self::build_task(
+            let task = Self::build_task(
                 &channel.id,
                 title.clone(),
                 format!("https://slack.com/archives/{}", channel.id),
                 description,
                 updated_at,
             );
-
-            task = task.with_metadata(TaskMetadata::Slack(SlackMetadata {
-                name: title.clone(),
-                is_channel: false,
-                is_mention: false,
-                is_dm: false,
-                is_mpim: true,
-                is_user_group: false,
-            }));
 
             tasks.push(task);
         }
@@ -180,22 +162,13 @@ impl SlackClient {
                 .and_then(|c| Some(c.name))
                 .unwrap_or_else(|| channel_id.clone());
             let channel_title = format!("Activity in {}", &channel_name);
-            let mut task = Self::build_task(
+            let task = Self::build_task(
                 &channel_id,
                 channel_title,
                 format!("https://slack.com/archives/{}", channel_id),
                 description,
                 updated_at,
             );
-
-            task = task.with_metadata(TaskMetadata::Slack(SlackMetadata {
-                name: channel_name,
-                is_channel: true,
-                is_mention: false,
-                is_dm: false,
-                is_mpim: false,
-                is_user_group: false,
-            }));
 
             tasks.push(task);
         }
@@ -291,26 +264,17 @@ impl SlackClient {
                 .unwrap_or_else(|| result.channel.name.clone());
 
             let query_name = match user_query {
-                Some(q) => format!("{}", q),
+                Some(q) => format!(" for {}", q),
                 _ => "".to_string(),
             };
 
-            let mut task = Self::build_task(
+            let task = Self::build_task(
                 &result.channel.id,
-                format!("Mention in {}:{}", channel_name, query_name),
+                format!("Mention in {}{}", channel_name, query_name),
                 result.permalink.clone(),
                 description,
                 updated_at,
             );
-
-            task = task.with_metadata(TaskMetadata::Slack(SlackMetadata {
-                name: format!("{}:{}", channel_name, query_name),
-                is_channel: false,
-                is_mention: true,
-                is_dm: false,
-                is_mpim: false,
-                is_user_group: false,
-            }));
 
             tasks.push(task);
         }

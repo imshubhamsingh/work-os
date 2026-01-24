@@ -1,6 +1,5 @@
 use crate::core::task::{PersonRole, Task};
 use crate::error::{Result, WorkOsError};
-use crate::generators::compressed_markdown::CompressedMarkdownGenerator;
 use crate::generators::markdown::{MarkdownGenerator, format_duration, get_task_icon};
 use crate::models::config::WorkOsConfig;
 use crate::plugins::create_registry;
@@ -52,7 +51,7 @@ pub async fn run(
     if markdown {
         let base_path = config.output.base_path.clone();
         let markdown_path = config.output.markdown_path.clone();
-        let markdown_generator = CompressedMarkdownGenerator::new(base_path.join(markdown_path));
+        let markdown_generator = MarkdownGenerator::new(base_path.join(markdown_path));
         let output_path = markdown_generator.generate(&all_tasks);
         println!(
             "{} Markdown generated at: {}",
