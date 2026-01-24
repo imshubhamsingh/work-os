@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
-pub mod config;
 pub mod auth;
+pub mod config;
 pub mod sync;
 
 #[derive(Parser)]
@@ -8,7 +8,7 @@ pub mod sync;
 #[command(version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands
+    pub command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -31,6 +31,9 @@ pub enum Commands {
     Sync {
         #[arg(long)]
         json: bool,
+
+        #[arg(long)]
+        markdown: bool,
 
         #[arg(long, value_delimiter = ',')]
         plugins: Option<Vec<String>>,

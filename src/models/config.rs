@@ -31,7 +31,7 @@ pub struct SlackConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputConfig {
     pub base_path: PathBuf,
-    pub dashboard_path: String,
+    pub markdown_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,10 +43,8 @@ pub struct SyncConfig {
 impl Default for OutputConfig {
     fn default() -> Self {
         Self {
-            base_path: dirs::home_dir()
-                .unwrap()
-                .join("Projects/obsidian/work/work-os"),
-            dashboard_path: "dashboards".to_string(),
+            base_path: dirs::home_dir().unwrap().join(".work-os"),
+            markdown_path: "markdown".to_string(),
         }
     }
 }

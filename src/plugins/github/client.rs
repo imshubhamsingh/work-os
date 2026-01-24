@@ -42,11 +42,11 @@ impl GithubClient {
 
         Ok(user.login == self.username)
     }
-    
+
     // ============================
     // Tasks
     // ============================
-    
+
     pub async fn get_all_tasks(&self) -> Result<Vec<Task>> {
         let mut all_tasks = Vec::new();
 

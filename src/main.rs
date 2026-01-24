@@ -1,6 +1,7 @@
 mod cli;
 mod core;
 mod error;
+mod generators;
 mod models;
 mod plugins;
 
@@ -22,7 +23,11 @@ async fn main() {
             AuthCommands::Github => cli::auth::test_github().await,
             AuthCommands::Slack => cli::auth::test_slack().await,
         },
-        Commands::Sync { json, plugins } => cli::sync::run(json, plugins).await,
+        Commands::Sync {
+            json,
+            plugins,
+            markdown,
+        } => cli::sync::run(json, markdown, plugins).await,
     };
 
     if let Err(e) = result {

@@ -1,12 +1,15 @@
-use crate::core::task::{PersonRole, Priority, Task, TaskType};
+use crate::core::task::{PersonRole, Task};
 use crate::error::{Result, WorkOsError};
+use crate::generators::markdown::{MarkdownGenerator, format_duration, get_task_icon};
 use crate::models::config::WorkOsConfig;
 use crate::plugins::create_registry;
-
-use chrono::{DateTime, Utc};
 use colored::*;
 
-pub async fn run(json_output: bool, plugin_filter: Option<Vec<String>>) -> Result<()> {
+pub async fn run(
+    json_output: bool,
+    markdown: bool,
+    plugin_filter: Option<Vec<String>>,
+) -> Result<()> {
     let config = WorkOsConfig::load()?;
     let registry = create_registry(&config)?;
 
@@ -45,6 +48,17 @@ pub async fn run(json_output: bool, plugin_filter: Option<Vec<String>>) -> Resul
         print_tasks(&all_tasks);
     }
 
+    if markdown {
+        let base_path = config.output.base_path.clone();
+        let markdown_path = config.output.markdown_path.clone();
+        let markdown_generator = MarkdownGenerator::new(base_path.join(markdown_path));
+        let output_path = markdown_generator.generate(&all_tasks);
+        println!(
+            "{} Markdown generated at: {:?}",
+            "✓".green(),
+            output_path.unwrap().to_str().unwrap()
+        );
+    }
     Ok(())
 }
 
@@ -53,59 +67,8 @@ fn print_tasks(tasks: &[Task]) {
     println!("{}", " TASKS ".bold().on_blue().white());
     println!("{}", "═".repeat(60).dimmed());
 
-    let critical: Vec<&Task> = tasks
-        .iter()
-        .filter(|t| t.priority == Priority::Critical)
-        .collect();
-    let high: Vec<&Task> = tasks
-        .iter()
-        .filter(|t| t.priority == Priority::High)
-        .collect();
-    let medium: Vec<&Task> = tasks
-        .iter()
-        .filter(|t| t.priority == Priority::Medium)
-        .collect();
-    let low: Vec<&Task> = tasks
-        .iter()
-        .filter(|t| t.priority == Priority::Low)
-        .collect();
-
-    let rest: Vec<&Task> = tasks
-        .iter()
-        .filter(|t| t.priority == Priority::Unknown)
-        .collect();
-
-    if !critical.is_empty() {
-        println!("\n{}", "🔴 CRITICAL".red().bold());
-        for task in critical {
-            print_task(task);
-        }
-    }
-
-    if !high.is_empty() {
-        println!("\n{}", "🟠 HIGH PRIORITY".yellow().bold());
-        for task in high {
-            print_task(task);
-        }
-    }
-
-    if !medium.is_empty() {
-        println!("\n{}", "🟡 MEDIUM PRIORITY".yellow().bold());
-        for task in medium {
-            print_task(task);
-        }
-    }
-
-    if !low.is_empty() {
-        println!("\n{}", "🟢 LOW PRIORITY".green().bold());
-        for task in low {
-            print_task(task);
-        }
-    }
-
-    if !rest.is_empty() {
-        println!("\n{}", "UNKNOWN PRIORITY".yellow().bold());
-        for task in rest {
+    if !tasks.is_empty() {
+        for task in tasks {
             print_task(task);
         }
     }
@@ -115,15 +78,7 @@ fn print_tasks(tasks: &[Task]) {
 }
 
 fn print_task(task: &Task) {
-    let icon = match task.task_type {
-        TaskType::PullRequest => "🔀",
-        TaskType::Issue => "🐛",
-        TaskType::Review => "👀",
-        TaskType::Message => "💬",
-        TaskType::Ticket => "🎫",
-        TaskType::Statistics => "📊",
-        TaskType::Other(_) => "📌",
-    };
+    let icon = get_task_icon(task);
 
     let source = format!("[{}]", task.source.to_uppercase()).dimmed();
 
@@ -148,52 +103,4 @@ fn print_task(task: &Task) {
     }
 
     println!("     {}", task.url.dimmed());
-}
-
-fn format_duration(date: DateTime<Utc>) -> String {
-    let mut duration_in_minutes = (Utc::now().timestamp() - date.timestamp()) / 60;
-
-    let minutes_in_year = 60 * 24 * 365;
-    let minutes_in_month = 60 * 24 * 30;
-    let minutes_in_week = 60 * 24 * 7;
-    let minutes_in_day = 60 * 24;
-    let minutes_in_hour = 60;
-
-    let year = duration_in_minutes / minutes_in_year;
-    duration_in_minutes %= minutes_in_year;
-    let month = duration_in_minutes / minutes_in_month;
-    duration_in_minutes %= minutes_in_month;
-    let week = duration_in_minutes / minutes_in_week;
-    duration_in_minutes %= minutes_in_week;
-    let day = duration_in_minutes / minutes_in_day;
-    duration_in_minutes %= minutes_in_day;
-    let hour = duration_in_minutes / minutes_in_hour;
-    duration_in_minutes %= minutes_in_hour;
-    let minute = duration_in_minutes;
-
-    let mut parts = Vec::new();
-    if year > 0 {
-        parts.push(format!("{}y", year));
-    }
-    if month > 0 {
-        parts.push(format!("{}m", month));
-    }
-    if week > 0 {
-        parts.push(format!("{}w", week));
-    }
-    if day > 0 {
-        parts.push(format!("{}d", day));
-    }
-    if hour > 0 {
-        parts.push(format!("{}h", hour));
-    }
-    if minute > 0 {
-        parts.push(format!("{}m", minute));
-    }
-
-    if parts.is_empty() {
-        "just now".to_string()
-    } else {
-        format!("{} ago", parts.join(" "))
-    }
 }
