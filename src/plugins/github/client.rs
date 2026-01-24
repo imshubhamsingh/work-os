@@ -104,7 +104,7 @@ impl GithubClient {
                 role: PersonRole::Author,
             })
             .with_metadata(TaskMetadata::GitHub(GitHubMetadata {
-                repo: format!("{owner}/{repo}"),
+                repo: format!("{repo}"),
                 number: pr.number,
                 state: serde_json::to_string(&pr.state).unwrap_or_default(),
                 comments: pr.comments,

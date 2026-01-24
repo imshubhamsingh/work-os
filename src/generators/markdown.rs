@@ -52,9 +52,8 @@ impl MarkdownGenerator {
 
         let mut metadata: Vec<String> = Vec::new();
 
-        if let Some(author) = task.people.iter().find(|p| p.role == PersonRole::Author) {
-            metadata.push(format!("by @{}\n", author.username).to_string());
-        }
+        let author = find_author(task);
+        metadata.push(format!("by @{}\n", author).to_string());
 
         metadata.push(format_duration(task.created_at).to_string());
 
@@ -64,6 +63,14 @@ impl MarkdownGenerator {
 
         md.push_str(&format!("     {}\n", task.url));
     }
+}
+
+pub fn find_author(task: &Task) -> String {
+    task.people
+        .iter()
+        .find(|p| p.role == PersonRole::Author)
+        .map(|p| format!("@{}", p.username))
+        .unwrap_or_else(|| "unknown".to_string())
 }
 
 pub fn format_duration(date: DateTime<Utc>) -> String {

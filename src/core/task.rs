@@ -89,21 +89,18 @@ pub struct ReviewCounts {
     pub commented: u32,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlackMetadata {
-    pub channel: String,
-    pub thread_ts: String
+    pub name: String,
+    pub is_channel: bool,
+    pub is_mention: bool,
+    pub is_dm: bool,
+    pub is_mpim: bool,
+    pub is_user_group: bool,
 }
 
 impl Task {
-    pub fn new(
-       source: &str,
-       task_type: TaskType,
-       id: &str,
-       title: String,
-       url: String,
-    ) -> Self {
+    pub fn new(source: &str, task_type: TaskType, id: &str, title: String, url: String) -> Self {
         let now = Utc::now();
         Self {
             id: format!("{}:{}:{}", source, task_type.short_name(), id),
@@ -148,7 +145,6 @@ impl Task {
         self
     }
 }
-
 
 impl TaskType {
     pub fn short_name(&self) -> &str {
