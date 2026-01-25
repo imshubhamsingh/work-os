@@ -6,7 +6,7 @@ use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use std::fmt::Write;
 
-use crate::core::task::{SlackMetadata, Task, TaskMetadata, TaskType};
+use crate::core::task::{Task, TaskType};
 use crate::error::{Result, WorkOsError};
 use crate::models::config::SlackConfig;
 use crate::plugins::slack::model::*;
@@ -20,7 +20,7 @@ pub struct SlackClient {
     channels: Vec<String>,
     user_groups: Vec<String>,
     max_messages_per_channel: usize,
-    user_cache: HashMap<String, Option<SlackUser>>,
+    user_cache: HashMap<String, SlackUser>,
     channel_cache: HashMap<String, Option<SlackChannel>>,
     seen_messages: HashSet<String>,
 }
@@ -185,11 +185,11 @@ impl SlackClient {
         Ok(all_tasks)
     }
 
-    async fn get_all_mentions(&mut self, user_query: Option<&String>) -> Result<Vec<Task>> {
+    async fn get_all_mentions(&mut self, user_query: Option<&str>) -> Result<Vec<Task>> {
         let mut tasks = Vec::new();
 
-        let search_query = match user_query {
-            Some(q) => q,
+        let search_query: String = match user_query {
+            Some(q) => q.to_string(),
             None => {
                 let current_user: SlackResponse<AuthTestData> = self.get("auth.test").await?;
                 let user_id = current_user
@@ -197,7 +197,7 @@ impl SlackClient {
                     .expect("auth.test must return data")
                     .user_id;
 
-                &format!("<@{}>", user_id)
+                format!("<@{}>", user_id)
             }
         };
 
@@ -233,9 +233,11 @@ impl SlackClient {
         for result in matches.iter() {
             let updated_at = parse_ts(&result.ts);
 
-            let Some(author) = self.get_user_info(&result.user).await? else {
+            let author = self.get_user_info(&result.user).await?;
+
+            if author.is_unknown() {
                 continue;
-            };
+            }
 
             let formatted_text = self.replace_user_id_with_handle(&result.text).await?;
             let mut description = format!("{}: {}", author.name, formatted_text);
@@ -350,55 +352,36 @@ impl SlackClient {
         }
 
         let url = format!("conversations.info?channel={}", channel_id);
-        let response: SlackResponse<ConversationsInfoData> = match self.get(&url).await {
-            Ok(resp) => resp,
-            Err(_) => {
-                self.channel_cache.insert(channel_id.to_string(), None);
-                return Ok(None);
-            }
+
+        let fetch_channel = match self.get::<SlackResponse<ConversationsInfoData>>(&url).await {
+            Ok(response) if response.ok => response.data.map(|d| d.channel),
+            _ => None,
         };
 
-        if !response.ok {
-            self.channel_cache.insert(channel_id.to_string(), None);
-            return Ok(None);
-        }
-
-        let channel = response.data.map(|d| d.channel);
-
         self.channel_cache
-            .insert(channel_id.to_string(), channel.clone());
+            .entry(channel_id.to_string())
+            .or_insert_with(|| fetch_channel.clone());
 
-        Ok(channel)
+        Ok(fetch_channel)
     }
 
-    async fn get_user_info(&mut self, user_id: &str) -> Result<Option<SlackUser>> {
+    async fn get_user_info(&mut self, user_id: &str) -> Result<SlackUser> {
         if let Some(cached) = self.user_cache.get(user_id) {
             return Ok(cached.clone());
         }
 
         let url = format!("users.info?user={}", user_id);
-        let response: SlackResponse<UsersInfoData> = match self.get(&url).await {
-            Ok(resp) => resp,
-            Err(_) => {
-                self.user_cache.insert(user_id.to_string(), None);
-                return Ok(None);
-            }
+
+        let fetched_user = match self.get::<SlackResponse<UsersInfoData>>(&url).await {
+            Ok(response) if response.ok => response.data.map(|d| d.user),
+            _ => None,
         };
 
-        if !response.ok {
-            self.user_cache.insert(user_id.to_string(), None);
-            return Ok(None);
-        }
+        let user = fetched_user.unwrap_or_else(|| SlackUser::unkown(user_id));
 
-        let Some(user) = response.data.map(|d| d.user) else {
-            self.user_cache.insert(user_id.to_string(), None);
-            return Ok(None);
-        };
+        self.user_cache.insert(user_id.to_string(), user.clone());
 
-        self.user_cache
-            .insert(user_id.to_string(), Some(user.clone()));
-
-        Ok(Some(user))
+        Ok(user)
     }
 
     async fn get<T: DeserializeOwned>(&self, end_point: &str) -> Result<T> {
@@ -424,10 +407,13 @@ impl SlackClient {
     // ============================
 
     async fn get_valid_user(&mut self, user_id: &str) -> Result<Option<SlackUser>> {
-        match self.get_user_info(user_id).await? {
-            Some(u) if !u.deleted && !u.is_bot => Ok(Some(u)),
-            _ => Ok(None),
+        let user = self.get_user_info(user_id).await?;
+
+        if user.is_unknown() || user.deleted || user.is_bot {
+            return Ok(None);
         }
+
+        Ok(Some(user))
     }
 
     async fn replace_user_id_with_handle(&mut self, description: &str) -> Result<String> {
@@ -438,7 +424,9 @@ impl SlackClient {
             let user_id = &cap[1];
             let full_match = cap.get(0).unwrap().as_str();
 
-            if let Some(user) = self.get_user_info(user_id).await? {
+            let user = self.get_user_info(user_id).await?;
+
+            if !user.is_unknown() {
                 let handle = format!("@{}", user.name);
                 result = result.replace(full_match, &handle)
             }
@@ -459,16 +447,7 @@ impl SlackClient {
                 continue;
             };
 
-            let author = match self.get_user_info(author_id).await? {
-                Some(a) => a,
-                _ => SlackUser {
-                    id: "-1".to_string(),
-                    name: format!("Unknown user {}", author_id),
-                    real_name: None,
-                    deleted: false,
-                    is_bot: false,
-                },
-            };
+            let author = self.get_user_info(author_id).await?;
 
             let text = self.replace_user_id_with_handle(&msg.text).await?;
 
@@ -494,16 +473,7 @@ impl SlackClient {
                 continue;
             };
 
-            let author = match self.get_user_info(author_id).await? {
-                Some(a) => a,
-                _ => SlackUser {
-                    id: "-1".to_string(),
-                    name: format!("Unknown user {}", author_id),
-                    real_name: None,
-                    deleted: false,
-                    is_bot: false,
-                },
-            };
+            let author = self.get_user_info(author_id).await?;
 
             let text = self.replace_user_id_with_handle(&msg.text).await?;
 
@@ -539,7 +509,7 @@ impl SlackClient {
     async fn build_description_form_thread(
         &mut self,
         channel_id: &str,
-        thread_messages: &Vec<SlackThreadMessage>,
+        thread_messages: &[SlackThreadMessage],
     ) -> Result<String> {
         let mut description = String::new();
         let mut threads: Vec<&SlackThreadMessage> = thread_messages.iter().collect();
@@ -563,7 +533,8 @@ impl SlackClient {
                 continue;
             }
 
-            if let Some(author) = self.get_user_info(&t.user).await? {
+            let author = self.get_user_info(&t.user).await?;
+            if !author.is_unknown() {
                 let msg = self.replace_user_id_with_handle(&t.text).await?;
                 let _ = writeln!(description, "{}: {}", author.name, msg);
             }

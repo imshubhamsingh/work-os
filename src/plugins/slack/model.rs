@@ -90,6 +90,24 @@ pub struct SlackUser {
     pub is_bot: bool,
 }
 
+impl SlackUser {
+    pub const UNKNOWN_ID: &'static str = "-1";
+
+    pub fn unkown(user_id: &str) -> SlackUser {
+        SlackUser {
+            id: Self::UNKNOWN_ID.to_string(),
+            name: format!("Unknown user {}", user_id),
+            real_name: None,
+            deleted: false,
+            is_bot: false,
+        }
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        self.id == Self::UNKNOWN_ID
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct AuthTestData {
     pub user_id: String,

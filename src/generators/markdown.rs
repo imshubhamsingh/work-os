@@ -2,6 +2,7 @@ use chrono::{DateTime, Local, Utc};
 
 use crate::core::task::{PersonRole, Task, TaskType};
 use crate::error::Result;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub struct MarkdownGenerator {
@@ -18,7 +19,9 @@ impl MarkdownGenerator {
 
         let file_name = Local::now().format("%Y-%m-%d-%H%M").to_string();
         let file_path = self.output_path.join(format!("{}.md", &file_name));
-        let content = self.build_markdown(tasks);
+        let mut content = self.build_markdown(tasks);
+
+        content = self.add_task_statistics(&content, tasks);
 
         std::fs::write(&file_path, content)?;
 
@@ -53,7 +56,7 @@ impl MarkdownGenerator {
         let mut metadata: Vec<String> = Vec::new();
 
         let author = find_author(task);
-        metadata.push(format!("by @{}\n", author).to_string());
+        metadata.push(format!("by @{}", author).to_string());
 
         metadata.push(format_duration(task.created_at).to_string());
 
@@ -63,13 +66,33 @@ impl MarkdownGenerator {
 
         md.push_str(&format!("     {}\n", task.url));
     }
+
+    fn add_task_statistics(&self, md: &str, tasks: &[Task]) -> String {
+        let mut md_with_stats = md.to_string();
+
+        let mut source_counts: HashMap<String, i64> = HashMap::new();
+
+        for task in tasks {
+            *source_counts.entry(task.source.clone()).or_insert(0) += 1;
+        }
+
+        if !source_counts.is_empty() {
+            md_with_stats.push_str("\n\n## Task Statistics\n");
+
+            for (source, count) in source_counts {
+                md_with_stats.push_str(&format!("{}: {} items\n", source, count));
+            }
+        }
+
+        md_with_stats
+    }
 }
 
 pub fn find_author(task: &Task) -> String {
     task.people
         .iter()
         .find(|p| p.role == PersonRole::Author)
-        .map(|p| format!("@{}", p.username))
+        .map(|p| format!("{}", p.username))
         .unwrap_or_else(|| "unknown".to_string())
 }
 
