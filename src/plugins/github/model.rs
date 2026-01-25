@@ -1,6 +1,14 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+pub struct GitHubConfig {
+    pub token: String,
+    pub username: String,
+    pub include_orgs: Vec<String>,
+    pub include_repos: Vec<String>,
+    pub bots: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrDetails {
     pub body: Option<String>,

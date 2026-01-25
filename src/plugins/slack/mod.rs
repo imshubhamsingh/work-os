@@ -4,7 +4,7 @@ mod model;
 use async_trait::async_trait;
 pub use client::SlackClient;
 
-use crate::core::plugin::{ConfigField, Plugin, PluginMetadata};
+use crate::core::plugin::{ConfigField, ConfigFieldType, Plugin, PluginMetadata};
 use crate::core::task::Task;
 use crate::error::Result;
 use crate::models::config::SlackConfig;
@@ -43,7 +43,7 @@ impl Plugin for SlackPlugin {
             id: "slack",
             name: "Slack",
             description: "Fetch messages and mentions from Slack",
-            version: "0.1.0",
+            version: "0.0.0",
             icon: "💬",
         }
     }
@@ -53,13 +53,42 @@ impl Plugin for SlackPlugin {
     }
 
     fn config_schema(&self) -> Vec<ConfigField> {
-        vec![ConfigField {
-            name: "token",
-            label: "User Token",
-            help: "Slack user token (xoxp-...) - Required for DMs, search, private channels",
-            required: true,
-            secret: true,
-        }]
+        vec![
+            ConfigField {
+                name: "token",
+                label: "User Token",
+                help: "Slack user token (xoxp-...)\n\
+                           Create at: https://api.slack.com/apps\n\
+                           Required for DMs, search, private channels",
+                field_type: ConfigFieldType::Secret,
+                required: true,
+                default: None,
+            },
+            ConfigField {
+                name: "keywords",
+                label: "Keywords to track",
+                help: "Messages containing these words may be action items",
+                field_type: ConfigFieldType::StringList,
+                required: false,
+                default: None,
+            },
+            ConfigField {
+                name: "channels",
+                label: "Channels to monitor",
+                help: "Comma-separated channel names (leave empty for all)",
+                field_type: ConfigFieldType::StringList,
+                required: false,
+                default: None,
+            },
+            ConfigField {
+                name: "max_messages_per_channel",
+                label: "Max messages per channel",
+                help: "Limit messages fetched per channel",
+                field_type: ConfigFieldType::Integer,
+                required: false,
+                default: Some("50"),
+            },
+        ]
     }
 
     async fn test_connection(&self) -> Result<bool> {
@@ -75,7 +104,7 @@ impl Plugin for SlackPlugin {
                 let mut client_clone = SlackClient::new(self.config.as_ref().unwrap())?;
                 client_clone.get_all_tasks().await
             }
-            None => Ok(Vec::new())
+            None => Ok(Vec::new()),
         }
     }
 }

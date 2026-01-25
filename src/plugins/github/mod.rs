@@ -1,12 +1,15 @@
 mod client;
 pub mod model;
 
+use std::collections::HashMap;
+
 pub use crate::core::plugin::{ConfigField, Plugin, PluginMetadata};
-use crate::core::task::Task;
 pub use crate::error::Result;
-pub use crate::models::config::GitHubConfig;
+use crate::{core::plugin::ConfigFieldType, plugins::github::model::GitHubConfig};
+use crate::{core::task::Task, error::WorkOsError};
 use async_trait::async_trait;
 pub use client::GithubClient;
+use toml::Value;
 
 pub struct GithubPlugin {
     client: Option<GithubClient>,
@@ -42,7 +45,7 @@ impl Plugin for GithubPlugin {
             id: "github",
             name: "GitHub",
             description: "Fetch PRs, issues, and reviews from GitHub",
-            version: "0.1.0",
+            version: "0.0.0",
             icon: "🐙",
         }
     }
@@ -55,19 +58,66 @@ impl Plugin for GithubPlugin {
         vec![
             ConfigField {
                 name: "token",
-                label: "GitHub access token",
-                help: "Create at: https://github.com/settings/tokens",
+                label: "Personal Access Token",
+                help: "Create at: https://github.com/settings/tokens\n\
+                               Required scopes: repo, read:org, read:user",
+                field_type: ConfigFieldType::Secret,
                 required: true,
-                secret: true,
+                default: None,
             },
             ConfigField {
                 name: "username",
-                label: "GitHub username",
+                label: "GitHub Username",
                 help: "Your GitHub username",
+                field_type: ConfigFieldType::String,
                 required: true,
-                secret: false,
+                default: None,
+            },
+            ConfigField {
+                name: "include_repos",
+                label: "Repositories to include",
+                help: "Comma-separated repo names like 'owner/repo' (leave empty for all)",
+                field_type: ConfigFieldType::StringList,
+                required: false,
+                default: None,
+            },
+            ConfigField {
+                name: "bots",
+                label: "Bot usernames to ignore",
+                help: "Comma-separated bot usernames",
+                field_type: ConfigFieldType::StringList,
+                required: false,
+                default: None,
             },
         ]
+    }
+
+    fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()> {
+        let token = values
+            .get("token")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| WorkOsError::Config("GitHub token is required".into()))?
+            .to_string();
+
+        let username = values
+            .get("username")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| WorkOsError::Config("GitHub username is required".into()))?
+            .to_string();
+
+        let include_orgs = ConfigField::extract_string_list(values, "include_orgs");
+        let include_repos = ConfigField::extract_string_list(values, "include_repos");
+        let bots = ConfigField::extract_string_list(values, "bots");
+
+        let config = GitHubConfig {
+            token,
+            username,
+            include_orgs,
+            include_repos,
+            bots,
+        };
+
+        self.configure(config)
     }
 
     async fn test_connection(&self) -> Result<bool> {

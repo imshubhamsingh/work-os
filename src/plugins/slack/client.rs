@@ -18,7 +18,6 @@ pub struct SlackClient {
     token: String,
     keywords: Vec<String>,
     channels: Vec<String>,
-    user_groups: Vec<String>,
     max_messages_per_channel: usize,
     user_cache: HashMap<String, SlackUser>,
     channel_cache: HashMap<String, Option<SlackChannel>>,
@@ -32,7 +31,6 @@ impl SlackClient {
             token: config.token.clone(),
             keywords: config.keywords.clone(),
             channels: config.channels.clone(),
-            user_groups: config.user_groups.clone(),
             max_messages_per_channel: config.max_messages_per_channel,
             user_cache: HashMap::new(),
             channel_cache: HashMap::new(),
@@ -52,7 +50,7 @@ impl SlackClient {
         all_tasks.extend(self.get_all_mentions(None).await?);
         all_tasks.extend(self.get_all_dms().await?);
         all_tasks.extend(self.get_all_group_dms().await?);
-        all_tasks.extend(self.get_all_user_groups_messages().await?);
+        all_tasks.extend(self.get_all_keywords_messages().await?);
 
         all_tasks.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         Ok(all_tasks)
@@ -176,10 +174,10 @@ impl SlackClient {
         Ok(tasks)
     }
 
-    async fn get_all_user_groups_messages(&mut self) -> Result<Vec<Task>> {
+    async fn get_all_keywords_messages(&mut self) -> Result<Vec<Task>> {
         let mut all_tasks = Vec::new();
-        for user_group in self.user_groups.clone() {
-            let user_group_tasks = self.get_all_mentions(Some(&user_group)).await?;
+        for keyword in self.keywords.clone() {
+            let user_group_tasks = self.get_all_mentions(Some(&keyword)).await?;
             all_tasks.extend(user_group_tasks);
         }
         Ok(all_tasks)

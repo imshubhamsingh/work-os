@@ -2,7 +2,6 @@ use crate::core::task::{
     GitHubMetadata, Person, PersonRole, Priority, ReviewCounts, Task, TaskMetadata, TaskType,
 };
 use crate::error::{Result, WorkOsError};
-use crate::models::config::GitHubConfig;
 use crate::plugins::github::model::*;
 use chrono::{DateTime, Duration, Utc};
 use octocrab::Octocrab;
