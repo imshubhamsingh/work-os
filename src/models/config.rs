@@ -5,8 +5,6 @@ use toml::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct WorkOsConfig {
-    // pub github: Option<GitHubConfig>,
-    // pub slack: Option<SlackConfig>,
     pub output: OutputConfig,
     pub plugins: HashMap<String, PluginConfig>,
 }
@@ -23,24 +21,6 @@ pub struct PluginConfig {
 fn default_true() -> bool {
     true
 }
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct GitHubConfig {
-//     pub token: String,
-//     pub username: String,
-//     pub include_orgs: Vec<String>,
-//     pub include_repos: Vec<String>,
-//     pub bots: Vec<String>,
-// }
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct SlackConfig {
-//     pub token: String,
-//     pub keywords: Vec<String>,
-//     pub channels: Vec<String>,
-//     pub user_groups: Vec<String>,
-//     pub max_messages_per_channel: usize,
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputConfig {
@@ -94,15 +74,15 @@ impl WorkOsConfig {
         Ok(())
     }
 
-    // pub fn get_plugin(&self, plugin_id: &str) -> Option<&PluginConfig> {
-    //     self.plugins.get(plugin_id)
-    // }
+    pub fn get_plugin(&self, plugin_id: &str) -> Option<&PluginConfig> {
+        self.plugins.get(plugin_id)
+    }
 
-    // fn get_plugin_mut(&mut self, plugin_id: &str) -> &mut PluginConfig {
-    //     self.plugins
-    //         .entry(plugin_id.to_string())
-    //         .or_insert_with(PluginConfig::default)
-    // }
+    pub fn get_plugin_mut(&mut self, plugin_id: &str) -> &mut PluginConfig {
+        self.plugins
+            .entry(plugin_id.to_string())
+            .or_insert_with(PluginConfig::default)
+    }
 
     pub fn set_plugin_value(&mut self, plugin_id: &str, key: &str, value: Value) {
         let plugin_config = self

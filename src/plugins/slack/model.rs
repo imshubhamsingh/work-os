@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SlackConfig {
+    pub token: String,
+    pub keywords: Vec<String>,
+    pub channels: Vec<String>,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SlackResponse<T> {
     pub ok: bool,

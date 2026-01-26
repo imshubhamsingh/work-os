@@ -1,13 +1,16 @@
 mod client;
 mod model;
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 pub use client::SlackClient;
+use toml::Value;
 
 use crate::core::plugin::{ConfigField, ConfigFieldType, Plugin, PluginMetadata};
 use crate::core::task::Task;
-use crate::error::Result;
-use crate::models::config::SlackConfig;
+use crate::error::{Result, WorkOsError};
+use crate::plugins::slack::model::SlackConfig;
 
 pub struct SlackPlugin {
     client: Option<SlackClient>,
@@ -79,16 +82,27 @@ impl Plugin for SlackPlugin {
                 field_type: ConfigFieldType::StringList,
                 required: false,
                 default: None,
-            },
-            ConfigField {
-                name: "max_messages_per_channel",
-                label: "Max messages per channel",
-                help: "Limit messages fetched per channel",
-                field_type: ConfigFieldType::Integer,
-                required: false,
-                default: Some("50"),
-            },
+            }
         ]
+    }
+
+    fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()> {
+        let token = values
+            .get("token")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| WorkOsError::Config("Slack user token is required".into()))?
+            .to_string();
+
+        let keywords = ConfigField::extract_string_list(values, "keywords");
+        let channels = ConfigField::extract_string_list(values, "channels");
+
+        let config = SlackConfig {
+            token,
+            keywords,
+            channels,
+        };
+
+        self.configure(config)
     }
 
     async fn test_connection(&self) -> Result<bool> {

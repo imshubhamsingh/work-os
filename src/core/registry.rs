@@ -17,7 +17,7 @@ impl PluginRegistry {
 
     pub fn register(&mut self, plugin: Box<dyn Plugin>) {
         self.plugins
-            .insert(plugin.metadata().id.to_string(), Arc::new((plugin)));
+            .insert(plugin.metadata().id.to_string(), Arc::new(plugin));
     }
 
     pub fn get(&self, id: &str) -> Option<Arc<Box<dyn Plugin>>> {

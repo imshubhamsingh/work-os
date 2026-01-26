@@ -60,7 +60,7 @@ impl Plugin for GithubPlugin {
                 name: "token",
                 label: "Personal Access Token",
                 help: "Create at: https://github.com/settings/tokens\n\
-                               Required scopes: repo, read:org, read:user",
+                        Required scopes: repo, read:org, read:user",
                 field_type: ConfigFieldType::Secret,
                 required: true,
                 default: None,

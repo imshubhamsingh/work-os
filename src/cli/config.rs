@@ -1,19 +1,14 @@
+use crate::cli::auth::{create_test_plugin_by_id, test_plugin_auth};
+use crate::core::plugin::{ConfigField, ConfigFieldType};
+use crate::error::WorkOsError;
 use crate::models::config::*;
-use crate::plugins::github::GithubPlugin;
-use crate::plugins::slack::SlackPlugin;
+use crate::models::terminal::*;
+use crate::plugins::get_all_plugins;
 use crate::{core::plugin::Plugin, error::Result};
 use colored::*;
-use std::io::{self, Write};
+use toml::Value;
 
-fn get_all_plugins() -> Vec<Box<dyn Plugin>> {
-    vec![
-        Box::new(GithubPlugin::new()),
-        Box::new(SlackPlugin::new()),
-        // @todo add more plugin here
-    ]
-}
-
-pub async fn init(plugin_filters: Option<String>) -> Result<()> {
+pub async fn init(plugin_filter: Option<String>) -> Result<()> {
     let mut config = WorkOsConfig::load().unwrap_or_default();
     let plugins = get_all_plugins();
 
@@ -21,7 +16,7 @@ pub async fn init(plugin_filters: Option<String>) -> Result<()> {
 
     for plugin in plugins {
         let meta = plugin.metadata();
-        if let Some(ref filter) = plugin_filters {
+        if let Some(ref filter) = plugin_filter {
             if meta.id != filter {
                 continue;
             }
@@ -30,7 +25,7 @@ pub async fn init(plugin_filters: Option<String>) -> Result<()> {
         println!("{} {} Configuration", meta.icon, meta.name);
         println!("{}", "-".repeat(40));
 
-        let setup = prompt(&format!("Configure {}? (y/n): ", meta.name))?;
+        let setup = Terminal::prompt(&format!("Configure {}? (y/n): ", meta.name))?;
         if setup.to_lowercase() != "y" {
             println!();
             continue;
@@ -45,46 +40,6 @@ pub async fn init(plugin_filters: Option<String>) -> Result<()> {
             }
         }
     }
-    // let mut config = WorkOsConfig {
-    //     github: None,
-    //     slack: None,
-    //     output: OutputConfig::default(),
-    //     sync: SyncConfig::default(),
-    // };
-
-    // println!("Github Configuration:");
-    // let setup_github = prompt("Configure Github? (y/n): ")?;
-    // if setup_github.to_lowercase() == "y" {
-    //     let token = prompt("  GitHub Personal Access Token: ")?;
-    //     let username = prompt("  GitHub Username: ")?;
-
-    //     config.github = Some(GitHubConfig {
-    //         token,
-    //         username,
-    //         include_repos: Vec::new(),
-    //         bots: Vec::new(),
-    //     });
-    // }
-
-    // println!("Slack Configuration:");
-    // let setup_slack = prompt("Configure Slack? (y/n): ")?;
-    // if setup_slack.to_lowercase() == "y" {
-    //     let token = prompt("  Slack User Token (xoxp-...): ")?;
-    //     config.slack = Some(SlackConfig {
-    //         token,
-    //         keywords: vec![
-    //             "todo".to_string(),
-    //             "action item".to_string(),
-    //             "can you".to_string(),
-    //             "please".to_string(),
-    //             "urgent".to_string(),
-    //             "asap".to_string(),
-    //         ],
-    //         channels: Vec::new(),
-    //         user_groups: Vec::new(),
-    //         max_messages_per_channel: 50,
-    //     });
-    // }
 
     config.save()?;
 
@@ -95,16 +50,125 @@ pub async fn init(plugin_filters: Option<String>) -> Result<()> {
     Ok(())
 }
 
-pub async fn show() -> Result<()> {
-    let config = WorkOsConfig::load()?;
-    let mut display_config = config.clone();
+async fn configure_plugin_interactive(
+    plugin: &Box<dyn Plugin>,
+    config: &mut WorkOsConfig,
+) -> Result<()> {
+    let meta = plugin.metadata();
+    let schema = plugin.config_schema();
+    let plugin_config = config.get_plugin_mut(meta.id);
 
-    if let Some(ref mut github) = display_config.github {
-        github.token = "****hidden****".to_string();
+    for field in &schema {
+        let value = prompt_for_field(field, plugin_config.values.get(field.name))?;
+
+        if let Some(v) = value {
+            plugin_config.values.insert(field.name.to_string(), v);
+        }
     }
 
-    if let Some(ref mut slack) = display_config.slack {
-        slack.token = "xoxp-*******************************************".to_string()
+    plugin_config.enabled = true;
+
+    println!("\nTesting connection...");
+
+    test_plugin_auth(&meta.id, Some(&plugin_config.clone())).await
+}
+
+fn prompt_for_field(field: &ConfigField, current: Option<&Value>) -> Result<Option<Value>> {
+    let current_hint = match current {
+        Some(v) if field.is_secret() => Some("[currently set]".to_string()),
+        Some(v) => Some(format!("[current: {}]", ConfigFieldType::format_value(v))),
+        None => field.default.map(|d| format!("[default: {}]", d)),
+    };
+
+    let prompt_text = match &current_hint {
+        Some(hint) => format!("  {} {}: ", field.label, hint),
+        None => format!("  {}: ", field.label),
+    };
+
+    println!("  {}", field.help.dimmed());
+
+    let input = match field.field_type {
+        ConfigFieldType::Secret => Terminal::prompt_secret(&prompt_text)?,
+        _ => Terminal::prompt(&prompt_text)?,
+    };
+
+    if input.is_empty() {
+        if current.is_some() {
+            return Ok(None);
+        }
+
+        if let Some(default) = field.default {
+            return Ok(Some(ConfigFieldType::parse_value(
+                default,
+                &field.field_type,
+            )));
+        }
+        if field.required {
+            return Err(WorkOsError::Config(format!("{} is required", field.label)));
+        }
+        return Ok(None);
+    }
+
+    Ok(Some(ConfigFieldType::parse_value(
+        &input,
+        &field.field_type,
+    )))
+}
+
+pub async fn set(plugin_id: &str, key: &str, value: &str) -> Result<()> {
+    let mut config = WorkOsConfig::load()?;
+
+    let plugin = create_test_plugin_by_id(plugin_id)?;
+    let schema = plugin.config_schema();
+
+    let field = schema.iter().find(|f| f.name == key).ok_or_else(|| {
+        WorkOsError::Config(format!(
+            "Unknown field '{}' for plugin '{}'",
+            key, plugin_id
+        ))
+    })?;
+
+    let parsed = ConfigFieldType::parse_value(value, &field.field_type);
+    config.set_plugin_value(plugin_id, key, parsed);
+
+    config.save()?;
+    println!("✓ Set {}.{} = {}", plugin_id, key, value);
+
+    Ok(())
+}
+
+pub async fn show(plugin_filter: Option<String>) -> Result<()> {
+    let config = WorkOsConfig::load()?;
+    let mut display_config = config.clone();
+    let plugins = get_all_plugins();
+
+    for plugin in plugins {
+        let plugin_id = plugin.metadata().id;
+        if let Some(ref filter) = plugin_filter {
+            if plugin_id != filter {
+                continue;
+            }
+        }
+
+        let schema = plugin.config_schema();
+
+        for field in schema {
+            if !field.is_secret() {
+                continue;
+            }
+
+            if let Some(plugin_config_values) = display_config
+                .plugins
+                .get_mut(plugin_id)
+                .and_then(|plugin_config| plugin_config.values.get_mut(field.name))
+            {
+                *plugin_config_values =
+                    toml::Value::String("************secret***********".to_string());
+            }
+        }
+    }
+    if let Some(filter) = plugin_filter {
+        display_config.plugins.retain(|id, _| id == &filter);
     }
 
     let toml = toml::to_string_pretty(&display_config).unwrap();
@@ -113,12 +177,24 @@ pub async fn show() -> Result<()> {
     Ok(())
 }
 
-fn prompt(message: &str) -> Result<String> {
-    print!("{}", message);
-    io::stdout().flush()?;
+pub async fn list() -> Result<()> {
+    let config = WorkOsConfig::load().unwrap_or_default();
 
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
+    println!("Available Plugins:\n");
 
-    Ok(input.trim().to_string())
+    for plugin in get_all_plugins() {
+        let meta = plugin.metadata();
+        let status = if config.is_plugin_configured(meta.id) {
+            format!("{}", "✔ configured".green())
+        } else {
+            format!("{}", "○ not configured".dimmed())
+        };
+
+        println!(
+            "  {} {} - {} {}",
+            meta.icon, meta.id, meta.description, status
+        );
+    }
+
+    Ok(())
 }

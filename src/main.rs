@@ -6,8 +6,10 @@ mod models;
 mod plugins;
 
 use clap::Parser;
-use cli::{AuthCommands, Cli, Commands, ConfigCommands};
+use cli::{Cli, Commands};
 use colored::*;
+
+use crate::cli::ConfigAction;
 
 #[tokio::main]
 async fn main() {
@@ -15,14 +17,15 @@ async fn main() {
 
     let result = match cli.command {
         Commands::Hello { name } => greet_user(name),
-        Commands::Config { command } => match command {
-            ConfigCommands::Init => cli::config::init().await,
-            ConfigCommands::Show => cli::config::show().await,
+        Commands::Config { action } => match action {
+            ConfigAction::Init { plugin } => cli::config::init(plugin).await,
+            ConfigAction::Show { plugin } => cli::config::show(plugin).await,
+            ConfigAction::Set { plugin, key, value } => {
+                cli::config::set(&plugin, &key, &value).await
+            }
+            ConfigAction::List => cli::config::list().await,
         },
-        Commands::Auth { command } => match command {
-            AuthCommands::Github => cli::auth::test_github().await,
-            AuthCommands::Slack => cli::auth::test_slack().await,
-        },
+        Commands::Auth { plugin } => cli::auth::test_all_plugin_auth(plugin).await,
         Commands::Sync {
             json,
             plugins,

@@ -8,17 +8,17 @@ use std::fmt::Write;
 
 use crate::core::task::{Task, TaskType};
 use crate::error::{Result, WorkOsError};
-use crate::models::config::SlackConfig;
 use crate::plugins::slack::model::*;
 
 const SLACK_API_BASE_URL: &str = "https://slack.com/api";
+
+const MAX_MESSAGES_LIMIT: i32 = 100;
 
 pub struct SlackClient {
     http: Client,
     token: String,
     keywords: Vec<String>,
     channels: Vec<String>,
-    max_messages_per_channel: usize,
     user_cache: HashMap<String, SlackUser>,
     channel_cache: HashMap<String, Option<SlackChannel>>,
     seen_messages: HashSet<String>,
@@ -31,7 +31,6 @@ impl SlackClient {
             token: config.token.clone(),
             keywords: config.keywords.clone(),
             channels: config.channels.clone(),
-            max_messages_per_channel: config.max_messages_per_channel,
             user_cache: HashMap::new(),
             channel_cache: HashMap::new(),
             seen_messages: HashSet::new(),
@@ -311,7 +310,7 @@ impl SlackClient {
 
         let url = format!(
             "conversations.history?channel={}&limit={}&oldest={}&newest={}",
-            channel_id, self.max_messages_per_channel, oldest_timestamp, newest_timestamp
+            channel_id, MAX_MESSAGES_LIMIT, oldest_timestamp, newest_timestamp
         );
 
         let response: SlackResponse<ConversationsHistoryData> = self.get(&url).await?;

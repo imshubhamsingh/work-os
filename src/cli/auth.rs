@@ -1,43 +1,91 @@
-use crate::error::{Result, WorkOsError};
-use crate::models::config::WorkOsConfig;
-use crate::plugins::github::GithubClient;
-use crate::plugins::slack::SlackClient;
+use std::collections::HashMap;
 
-pub async fn test_github() -> Result<()> {
+use crate::core::plugin::Plugin;
+use crate::error::{Result, WorkOsError};
+use crate::models::config::{PluginConfig, WorkOsConfig};
+use crate::plugins::get_all_plugins;
+use colored::*;
+use toml::Value;
+
+pub async fn test_all_plugin_auth(plugin_filter: Option<String>) -> Result<()> {
+    let plugins = get_all_plugins();
     let config = WorkOsConfig::load()?;
-    let github_config = config
-        .github
-        .ok_or(WorkOsError::Config("GitHub not configured".to_string()))?;
-    println!("Testing Github connection...");
-    let github_client = GithubClient::new(&github_config)?;
-    let success = github_client.test_connection().await?;
-    if success {
-        println!(
-            "✓ GitHub authentication successful for user: {}",
-            github_config.username
-        );
-    } else {
-        println!(
-            "✗ GitHub connection failed - please check your credentials or username and try again"
-        );
+    for plugin in plugins {
+        let plugin_id = plugin.metadata().id;
+        if let Some(ref filter) = plugin_filter {
+            if filter != plugin_id {
+                continue;
+            }
+        }
+        test_plugin_auth(plugin_id, config.get_plugin(plugin_id));
     }
 
     Ok(())
 }
 
-pub async fn test_slack() -> Result<()> {
-    let config = WorkOsConfig::load()?;
-    let slack_config = config.slack.ok_or_else(|| {
-        WorkOsError::Config("Slack not configured. Add [slack] section to config.".to_string())
-    })?;
-    println!("Testing Slack connection...");
-    let slack_client = SlackClient::new(&slack_config)?;
-    let success = slack_client.test_connection().await?;
-    if success {
-        println!("✓ Slack authentication successful");
-    } else {
-        println!("✗ Slack authentication failed");
-    }
+pub async fn test_plugin_auth(plugin_id: &str, plugin_config: Option<&PluginConfig>) -> Result<()> {
+    let strict = plugin_config.is_some();
 
-    Ok(())
+    let owned_values;
+    let plugin_config_values: &HashMap<String, Value> = match plugin_config {
+        Some(p) => &p.values,
+        None => {
+            let config = WorkOsConfig::load()?;
+            let plugin = match config.get_plugin(plugin_id) {
+                Some(p) => p,
+                None => {
+                    println!("{} Plugin '{}' not configured", "⚠".yellow(), plugin_id);
+                    return Ok(());
+                }
+            };
+
+            owned_values = plugin.values.clone();
+            &owned_values
+        }
+    };
+
+    let mut test_plugin = create_test_plugin_by_id(plugin_id)?;
+    test_plugin.configure_from_values(plugin_config_values)?;
+
+    match test_plugin.test_connection().await {
+        Ok(true) => {
+            println!("{} Connection successful!", "✔".green());
+            Ok(())
+        }
+
+        Ok(false) => {
+            let msg = format!(
+                "{} Connection test returned false",
+                test_plugin.metadata().name
+            );
+            if strict {
+                Err(WorkOsError::Config(msg.into()))
+            } else {
+                println!("{} {}", "✗".red(), msg);
+                Ok(())
+            }
+        }
+
+        Err(e) => {
+            if strict {
+                Err(WorkOsError::Config(format!("Connection failed: {}", e)))
+            } else {
+                println!(
+                    "{} {} Connection failed: {}",
+                    "✗".red(),
+                    test_plugin.metadata().name,
+                    e
+                );
+                Ok(())
+            }
+        }
+    }
+}
+
+pub fn create_test_plugin_by_id(id: &str) -> Result<Box<dyn Plugin>> {
+    let plugins = get_all_plugins();
+    plugins
+        .into_iter()
+        .find(|plugin| plugin.metadata().id == id)
+        .ok_or_else(|| WorkOsError::Config(format!("Unknown plugin: {}", id)))
 }

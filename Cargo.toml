@@ -18,3 +18,4 @@ chrono = { version = "0.4", features = ["serde"] }
 colored = "2.1"
 async-trait = "0.1"
 regex = "1.12"
+rpassword = "7.3"

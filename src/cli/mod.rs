@@ -20,12 +20,11 @@ pub enum Commands {
 
     Config {
         #[command(subcommand)]
-        command: ConfigCommands,
+        action: ConfigAction,
     },
 
     Auth {
-        #[command(subcommand)]
-        command: AuthCommands,
+        plugin: Option<String>,
     },
 
     Sync {
@@ -41,13 +40,20 @@ pub enum Commands {
 }
 
 #[derive(Subcommand)]
-pub enum ConfigCommands {
-    Init,
-    Show,
-}
+pub enum ConfigAction {
+    Init {
+        plugin: Option<String>,
+    },
 
-#[derive(Subcommand)]
-pub enum AuthCommands {
-    Github,
-    Slack,
+    Show {
+        plugin: Option<String>,
+    },
+
+    Set {
+        plugin: String,
+        key: String,
+        value: String,
+    },
+
+    List,
 }
