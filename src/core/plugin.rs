@@ -10,7 +10,6 @@ pub struct PluginMetadata {
     pub id: &'static str,
     pub name: &'static str,
     pub description: &'static str,
-    pub version: &'static str,
     pub icon: &'static str,
 }
 
@@ -19,8 +18,8 @@ pub enum ConfigFieldType {
     String,
     Secret,
     StringList,
-    Integer,
-    Boolean,
+    // Integer,
+    // Boolean,
 }
 
 impl ConfigFieldType {
@@ -48,14 +47,14 @@ impl ConfigFieldType {
                     .collect();
                 Value::Array(items)
             }
-            ConfigFieldType::Integer => input
-                .parse::<i64>()
-                .map(Value::Integer)
-                .unwrap_or_else(|_| Value::String(input.to_string())),
-            ConfigFieldType::Boolean => {
-                let lower = input.to_lowercase();
-                Value::Boolean(lower == "y" || lower == "yes" || lower == "true" || lower == "1")
-            }
+            // ConfigFieldType::Integer => input
+            //     .parse::<i64>()
+            //     .map(Value::Integer)
+            //     .unwrap_or_else(|_| Value::String(input.to_string())),
+            // ConfigFieldType::Boolean => {
+            //     let lower = input.to_lowercase();
+            //     Value::Boolean(lower == "y" || lower == "yes" || lower == "true" || lower == "1")
+            // }
         }
     }
 }

@@ -96,46 +96,27 @@ pub fn find_author(task: &Task) -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
+const TIME_UNITS: [(&str, i64); 6] = [
+    ("y", 60 * 24 * 365),
+    ("mo", 60 * 24 * 30),
+    ("w", 60 * 24 * 7),
+    ("d", 60 * 24),
+    ("h", 60),
+    ("m", 1),
+];
+
 pub fn format_duration(date: DateTime<Utc>) -> String {
-    let mut duration_in_minutes = (Utc::now().timestamp() - date.timestamp()) / 60;
+    let mut minutes = (Utc::now().timestamp() - date.timestamp()) / 60;
 
-    let minutes_in_year = 60 * 24 * 365;
-    let minutes_in_month = 60 * 24 * 30;
-    let minutes_in_week = 60 * 24 * 7;
-    let minutes_in_day = 60 * 24;
-    let minutes_in_hour = 60;
+    let parts: Vec<String> = TIME_UNITS
+        .iter()
+        .filter_map(|(label, size)| {
+            let value = minutes / size;
+            minutes %= size;
 
-    let year = duration_in_minutes / minutes_in_year;
-    duration_in_minutes %= minutes_in_year;
-    let month = duration_in_minutes / minutes_in_month;
-    duration_in_minutes %= minutes_in_month;
-    let week = duration_in_minutes / minutes_in_week;
-    duration_in_minutes %= minutes_in_week;
-    let day = duration_in_minutes / minutes_in_day;
-    duration_in_minutes %= minutes_in_day;
-    let hour = duration_in_minutes / minutes_in_hour;
-    duration_in_minutes %= minutes_in_hour;
-    let minute = duration_in_minutes;
-
-    let mut parts = Vec::new();
-    if year > 0 {
-        parts.push(format!("{}y", year));
-    }
-    if month > 0 {
-        parts.push(format!("{}m", month));
-    }
-    if week > 0 {
-        parts.push(format!("{}w", week));
-    }
-    if day > 0 {
-        parts.push(format!("{}d", day));
-    }
-    if hour > 0 {
-        parts.push(format!("{}h", hour));
-    }
-    if minute > 0 {
-        parts.push(format!("{}m", minute));
-    }
+            (value > 0).then(|| format!("{value}{label}"))
+        })
+        .collect();
 
     if parts.is_empty() {
         "just now".to_string()

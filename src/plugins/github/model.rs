@@ -74,24 +74,3 @@ pub struct ReviewComment {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ReviewCounts {
-    pub approved: u32,
-    pub changes_requested: u32,
-    pub commented: u32,
-}
-
-impl ReviewCounts {
-    pub fn from_reviews(reviews: &[PrReview]) -> Self {
-        let mut counts = ReviewCounts::default();
-        for review in reviews {
-            match review.state {
-                ReviewState::Approved => counts.approved += 1,
-                ReviewState::ChangesRequested => counts.changes_requested += 1,
-                ReviewState::Commented => counts.commented += 1,
-                _ => {}
-            }
-        }
-        counts
-    }
-}

@@ -99,30 +99,3 @@ impl WorkOsConfig {
     }
 }
 
-impl PluginConfig {
-    pub fn get_string(&self, key: &str) -> Option<String> {
-        self.values
-            .get(key)
-            .and_then(|v| v.as_str().map(String::from))
-    }
-
-    pub fn get_string_list(&self, key: &str) -> Vec<String> {
-        self.values
-            .get(key)
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn get_integer(&self, key: &str) -> Option<i64> {
-        self.values.get(key).and_then(|v| v.as_integer())
-    }
-
-    pub fn get_bool(&self, key: &str) -> Option<bool> {
-        self.values.get(key).and_then(|v| v.as_bool())
-    }
-}

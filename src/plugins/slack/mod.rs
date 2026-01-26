@@ -46,7 +46,6 @@ impl Plugin for SlackPlugin {
             id: "slack",
             name: "Slack",
             description: "Fetch messages and mentions from Slack",
-            version: "0.0.0",
             icon: "💬",
         }
     }
@@ -114,7 +113,7 @@ impl Plugin for SlackPlugin {
 
     async fn fetch_tasks(&self) -> Result<Vec<Task>> {
         match &self.client {
-            Some(client) => {
+            Some(_client) => {
                 let mut client_clone = SlackClient::new(self.config.as_ref().unwrap())?;
                 client_clone.get_all_tasks().await
             }

@@ -17,7 +17,7 @@ pub async fn test_all_plugin_auth(plugin_filter: Option<String>) -> Result<()> {
                 continue;
             }
         }
-        test_plugin_auth(plugin_id, config.get_plugin(plugin_id));
+        test_plugin_auth(plugin_id, config.get_plugin(plugin_id)).await?;
     }
 
     Ok(())

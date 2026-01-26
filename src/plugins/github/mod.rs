@@ -45,7 +45,6 @@ impl Plugin for GithubPlugin {
             id: "github",
             name: "GitHub",
             description: "Fetch PRs, issues, and reviews from GitHub",
-            version: "0.0.0",
             icon: "🐙",
         }
     }

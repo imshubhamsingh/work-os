@@ -30,12 +30,12 @@ pub struct SlackChannel {
     pub name: String,
     #[serde(default)]
     pub is_member: bool,
-    #[serde(default)]
-    pub is_group: bool,
+    // #[serde(default)]
+    // pub is_group: bool,
     #[serde(default)]
     pub is_im: bool,
-    #[serde(default)]
-    pub is_mpim: bool,
+    // #[serde(default)]
+    // pub is_mpim: bool,
     #[serde(default)]
     pub user: Option<String>,
     pub purpose: Option<SlackChannelPurpose>,
@@ -44,22 +44,22 @@ pub struct SlackChannel {
 pub struct SlackChannelPurpose {
     #[serde(default)]
     pub value: String,
-    #[serde(default)]
-    pub creator: String,
-    #[serde(default)]
-    pub last_set: u64,
+    // #[serde(default)]
+    // pub creator: String,
+    // #[serde(default)]
+    // pub last_set: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct SlackReaction {
-    pub name: String,
-    pub count: u32,
-}
+// #[derive(Debug, Clone, Deserialize)]
+// pub struct SlackReaction {
+//     // pub name: String,
+//     // pub count: u32,
+// }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SlackMessage {
-    #[serde(rename = "type")]
-    pub message_type: String,
+    // #[serde(rename = "type")]
+    // pub message_type: String,
     pub text: String,
     #[serde(default)]
     pub user: Option<String>,
@@ -68,8 +68,8 @@ pub struct SlackMessage {
     pub thread_ts: Option<String>,
     #[serde(default)]
     pub reply_count: u32,
-    #[serde(default)]
-    pub reactions: Option<Vec<SlackReaction>>,
+    // #[serde(default)]
+    // pub reactions: Option<Vec<SlackReaction>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -80,7 +80,7 @@ pub struct ConversationsListData {
 #[derive(Debug, Deserialize)]
 pub struct ConversationsHistoryData {
     pub messages: Vec<SlackMessage>,
-    pub has_more: bool,
+    // pub has_more: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,8 +118,8 @@ impl SlackUser {
 #[derive(Debug, Deserialize)]
 pub struct AuthTestData {
     pub user_id: String,
-    pub user: String,
-    pub team: String,
+    // pub user: String,
+    // pub team: String,
 }
 
 #[derive(Debug, Deserialize)]

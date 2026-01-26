@@ -1,12 +1,11 @@
 use crate::cli::auth::{create_test_plugin_by_id, test_plugin_auth};
-use crate::core::plugin::{ConfigField, ConfigFieldType};
+use crate::core::plugin::ConfigFieldType;
 use crate::error::WorkOsError;
 use crate::models::config::*;
 use crate::models::terminal::*;
 use crate::plugins::get_all_plugins;
 use crate::{core::plugin::Plugin, error::Result};
 use colored::*;
-use toml::Value;
 
 pub async fn init(plugin_filter: Option<String>) -> Result<()> {
     let mut config = WorkOsConfig::load().unwrap_or_default();
@@ -59,7 +58,7 @@ async fn configure_plugin_interactive(
     let plugin_config = config.get_plugin_mut(meta.id);
 
     for field in &schema {
-        let value = prompt_for_field(field, plugin_config.values.get(field.name))?;
+        let value = Terminal::prompt_for_field(field, plugin_config.values.get(field.name))?;
 
         if let Some(v) = value {
             plugin_config.values.insert(field.name.to_string(), v);
@@ -71,48 +70,6 @@ async fn configure_plugin_interactive(
     println!("\nTesting connection...");
 
     test_plugin_auth(&meta.id, Some(&plugin_config.clone())).await
-}
-
-fn prompt_for_field(field: &ConfigField, current: Option<&Value>) -> Result<Option<Value>> {
-    let current_hint = match current {
-        Some(v) if field.is_secret() => Some("[currently set]".to_string()),
-        Some(v) => Some(format!("[current: {}]", ConfigFieldType::format_value(v))),
-        None => field.default.map(|d| format!("[default: {}]", d)),
-    };
-
-    let prompt_text = match &current_hint {
-        Some(hint) => format!("  {} {}: ", field.label, hint),
-        None => format!("  {}: ", field.label),
-    };
-
-    println!("  {}", field.help.dimmed());
-
-    let input = match field.field_type {
-        ConfigFieldType::Secret => Terminal::prompt_secret(&prompt_text)?,
-        _ => Terminal::prompt(&prompt_text)?,
-    };
-
-    if input.is_empty() {
-        if current.is_some() {
-            return Ok(None);
-        }
-
-        if let Some(default) = field.default {
-            return Ok(Some(ConfigFieldType::parse_value(
-                default,
-                &field.field_type,
-            )));
-        }
-        if field.required {
-            return Err(WorkOsError::Config(format!("{} is required", field.label)));
-        }
-        return Ok(None);
-    }
-
-    Ok(Some(ConfigFieldType::parse_value(
-        &input,
-        &field.field_type,
-    )))
 }
 
 pub async fn set(plugin_id: &str, key: &str, value: &str) -> Result<()> {

@@ -28,14 +28,6 @@ impl PluginRegistry {
         self.plugins.values().cloned().collect()
     }
 
-    pub fn get_all_configured(&self) -> Vec<Arc<Box<dyn Plugin>>> {
-        self.plugins
-            .values()
-            .filter(|plugin| plugin.is_configured())
-            .cloned()
-            .collect()
-    }
-
     pub fn list_ids(&self) -> Vec<String> {
         self.plugins.keys().cloned().collect()
     }
