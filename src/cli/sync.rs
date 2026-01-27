@@ -67,11 +67,7 @@ fn print_tasks(tasks: &[Task]) {
     println!("{}", " TASKS ".bold().on_blue().white());
     println!("{}", "═".repeat(60).dimmed());
 
-    if !tasks.is_empty() {
-        for task in tasks {
-            print_task(task);
-        }
-    }
+    tasks.iter().for_each(print_task);
 
     println!("\n{}", "═".repeat(60).dimmed());
     println!("Total tasks: {}", tasks.len().to_string().bold());

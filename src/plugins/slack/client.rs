@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use std::fmt::Write;
@@ -122,7 +122,7 @@ impl SlackClient {
                 .purpose
                 .as_ref()
                 .map(|p| p.value.clone())
-                .unwrap_or_else(|| "Unknow Group DM".to_string());
+                .unwrap_or_else(|| "Unknown Group DM".to_string());
 
             let task = Self::build_task(
                 &channel.id,
@@ -140,8 +140,9 @@ impl SlackClient {
 
     async fn get_all_channel_messages(&mut self) -> Result<Vec<Task>> {
         let mut tasks = Vec::new();
+        let channels = self.channels.clone();
 
-        for channel_id in self.channels.clone() {
+        for channel_id in &channels {
             let messages = self.get_channel_messages(&channel_id).await?;
             if messages.is_empty() {
                 continue;
@@ -156,7 +157,7 @@ impl SlackClient {
             let channel_name: String = self
                 .get_channel_info(&channel_id)
                 .await?
-                .and_then(|c| Some(c.name))
+                .map(|c| c.name)
                 .unwrap_or_else(|| channel_id.clone());
             let channel_title = format!("Activity in {}", &channel_name);
             let task = Self::build_task(
@@ -175,7 +176,8 @@ impl SlackClient {
 
     async fn get_all_keywords_messages(&mut self) -> Result<Vec<Task>> {
         let mut all_tasks = Vec::new();
-        for keyword in self.keywords.clone() {
+        let keywords = self.keywords.clone();
+        for keyword in &keywords {
             let user_group_tasks = self.get_all_mentions(Some(&keyword)).await?;
             all_tasks.extend(user_group_tasks);
         }
@@ -201,11 +203,11 @@ impl SlackClient {
         let (oldest_timestamp, _) = last_24_hr_range();
         let after_date = DateTime::from_timestamp(oldest_timestamp, 0)
             // @todo fix this, some time zone issue.
-            .map(|dt| (dt - Duration::hours(24)).format("%Y-%m-%d").to_string())
+            .map(|dt| (dt - TimeDelta::hours(24)).format("%Y-%m-%d").to_string())
             .unwrap_or_default();
 
         let before_date = DateTime::from_timestamp(oldest_timestamp, 0)
-            .map(|dt| (dt + Duration::hours(24)).format("%Y-%m-%d").to_string())
+            .map(|dt| (dt + TimeDelta::hours(24)).format("%Y-%m-%d").to_string())
             .unwrap_or_default();
 
         let search_message_url = format!(
@@ -228,7 +230,7 @@ impl SlackClient {
         }
 
         for result in matches.iter() {
-            let updated_at = parse_ts(&result.ts);
+            let updated_at = parse_ts(&result.ts).unwrap_or_else(Utc::now);
 
             let author = self.get_user_info(&result.user).await?;
 
@@ -264,7 +266,7 @@ impl SlackClient {
 
             let query_name = match user_query {
                 Some(q) => format!(" for {}", q),
-                _ => "".to_string(),
+                _ => String::new(),
             };
 
             let task = Self::build_task(
@@ -565,11 +567,16 @@ impl SlackClient {
 // ============================
 
 fn latest_message_ts(messages: &[SlackMessage]) -> DateTime<Utc> {
-    parse_ts(&messages[messages.len() - 1].ts)
+    messages
+        .last()
+        .and_then(|m| parse_ts(&m.ts))
+        .unwrap_or_else(Utc::now)
 }
 
-fn parse_ts(ts: &str) -> DateTime<Utc> {
-    DateTime::parse_from_str(ts, "%s.%f").unwrap().into()
+fn parse_ts(ts: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_str(ts, "%s.%f")
+        .ok()
+        .map(|dt| dt.into())
 }
 
 fn last_24_hr_range() -> (i64, i64) {

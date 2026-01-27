@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub struct PluginRegistry {
-    plugins: HashMap<String, Arc<Box<dyn Plugin>>>,
+    plugins: HashMap<String, Arc<dyn Plugin>>,
 }
 
 impl PluginRegistry {
@@ -17,14 +17,14 @@ impl PluginRegistry {
 
     pub fn register(&mut self, plugin: Box<dyn Plugin>) {
         self.plugins
-            .insert(plugin.metadata().id.to_string(), Arc::new(plugin));
+            .insert(plugin.metadata().id.to_string(), Arc::from(plugin));
     }
 
-    pub fn get(&self, id: &str) -> Option<Arc<Box<dyn Plugin>>> {
+    pub fn get(&self, id: &str) -> Option<Arc<dyn Plugin>> {
         self.plugins.get(id).cloned()
     }
 
-    pub fn get_all(&self) -> Vec<Arc<Box<dyn Plugin>>> {
+    pub fn get_all(&self) -> Vec<Arc<dyn Plugin>> {
         self.plugins.values().cloned().collect()
     }
 
@@ -53,3 +53,4 @@ impl Default for PluginRegistry {
         Self::new()
     }
 }
+

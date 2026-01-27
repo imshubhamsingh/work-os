@@ -31,22 +31,23 @@ pub struct OutputConfig {
 impl Default for OutputConfig {
     fn default() -> Self {
         Self {
-            base_path: dirs::home_dir().unwrap().join(".work-os"),
+            base_path: dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".work-os"),
             markdown_path: "markdown".to_string(),
         }
     }
 }
 
 impl WorkOsConfig {
-    pub fn config_path() -> PathBuf {
-        dirs::home_dir()
-            .unwrap()
-            .join(".work-os")
-            .join("config.toml")
+    pub fn config_path() -> Result<PathBuf> {
+        let home = dirs::home_dir()
+            .ok_or_else(|| WorkOsError::Config("Could not determine home directory".into()))?;
+        Ok(home.join(".work-os").join("config.toml"))
     }
 
     pub fn load() -> Result<Self> {
-        let config_path = Self::config_path();
+        let config_path = Self::config_path()?;
         if !config_path.exists() {
             return Err(WorkOsError::Config(
                 "Config file not found. Run: work-os config init".to_string(),
@@ -61,10 +62,10 @@ impl WorkOsConfig {
     }
 
     pub fn save(&self) -> Result<()> {
-        let config_path = Self::config_path();
-        let config_dir = config_path.parent().unwrap();
-
-        std::fs::create_dir_all(config_dir)?;
+        let config_path = Self::config_path()?;
+        if let Some(config_dir) = config_path.parent() {
+            std::fs::create_dir_all(config_dir)?;
+        }
 
         let contents =
             toml::to_string_pretty(self).map_err(|e| WorkOsError::Config(e.to_string()))?;

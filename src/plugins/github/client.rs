@@ -3,7 +3,7 @@ use crate::core::task::{
 };
 use crate::error::{Result, WorkOsError};
 use crate::plugins::github::model::*;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use octocrab::Octocrab;
 use std::fmt::Write;
 
@@ -103,7 +103,7 @@ impl GithubClient {
                 role: PersonRole::Author,
             })
             .with_metadata(TaskMetadata::GitHub(GitHubMetadata {
-                repo: format!("{repo}"),
+                repo: repo.clone(),
                 number: pr.number,
                 state: serde_json::to_string(&pr.state).unwrap_or_default(),
                 comments: pr.comments,
@@ -170,7 +170,7 @@ impl GithubClient {
         }
     }
 
-    fn determine_review_state(reviews: &Vec<PrReview>) -> Option<String> {
+    fn determine_review_state(reviews: &[PrReview]) -> Option<String> {
         /*
          * Priority: ChangesRequested > Approved > Commented
          */
@@ -195,7 +195,7 @@ impl GithubClient {
         }
     }
 
-    fn build_review_counts(reviews: &Vec<PrReview>) -> ReviewCounts {
+    fn build_review_counts(reviews: &[PrReview]) -> ReviewCounts {
         ReviewCounts {
             approved: reviews
                 .iter()
@@ -457,15 +457,16 @@ impl GithubClient {
 
 fn truncate_text(text: &str, max_len: usize) -> String {
     let text = text.trim();
-    if text.len() <= max_len {
-        text.to_string()
-    } else {
-        format!("{}...", &text[..max_len])
+    let chars = text.chars();
+    if chars.clone().count() <= max_len {
+        return text.to_string();
     }
+    let truncated: String = chars.take(max_len).collect();
+    format!("{}...", truncated)
 }
 
 fn last_24_hr_cutoff() -> DateTime<Utc> {
-    Utc::now() - Duration::hours(24)
+    Utc::now() - TimeDelta::hours(24)
 }
 
 pub enum SearchType {
