@@ -48,6 +48,38 @@ You must extract actionable items, ownership, URLs, risks, and context from this
 | Context | Discussions Shubham is mentioned in but not owner. Group by topic. |
 | Learning | Patterns, insights, or process gaps observed from today's activities. Actionable observations only. |
 
+### PR Review Status Detection (CRITICAL)
+
+**Before listing any PR as "pending review", check the GitHub data in raw files for review indicators:**
+
+1. Look for `Reviews:` section under each PR entry
+2. If `{{USERNAME}}:Commented` or `{{USERNAME}}:Approved` appears → PR is **already reviewed**
+3. If `Review Comments:` section contains comments from `{{USERNAME}}` → PR is **already reviewed**
+
+**Classification:**
+- **Already reviewed** → Mark as `[x]` and status "reviewed, waiting on @author"
+- **Not yet reviewed** → Mark as `[ ]` and status "pending ~Xd (requested by @person)"
+
+**Example raw data indicating PR is already reviewed:**
+```
+🔀 [GITHUB] feat: CE <> management type support
+      Reviews:
+      - {{USERNAME}}:Commented
+
+      Review Comments:
+      - {{USERNAME}} (file.ts): comment text...
+```
+
+This PR should appear as:
+```markdown
+- [x] [PR #121: CE management type](url) — reviewed, waiting on @author
+```
+
+**NOT as:**
+```markdown
+- [ ] [PR #121: CE management type](url) — pending ~6d (requested by @author)
+```
+
 ### Release Detection Logic
 
 When processing raw data, look for signals indicating an upcoming release/launch:
@@ -94,7 +126,12 @@ Generate Markdown using this exact structure:
 ---
 
 ## 👀 Reviews / Approvals
+
+### Pending Review
 - [ ] [PR title](url) — pending ~Xh/Xd (requested by @person)
+
+### Reviewed (Waiting on Author)
+- [x] [PR title](url) — reviewed, waiting on @author
 
 ---
 
@@ -168,8 +205,13 @@ Generate Markdown using this exact structure:
 8. For "Learning / Improvements":
    - Extract insights about process gaps, documentation needs, or recurring patterns
    - Focus on actionable observations
-9. Prefer clarity over completeness
-10. Return ONLY the Markdown content
+9. For "Reviews / Approvals":
+   - **CRITICAL:** Check GitHub data for `{{USERNAME}}:Commented` or review comments before classifying
+   - PRs with existing review comments from {{USERNAME}} → "reviewed, waiting on @author"
+   - PRs without review from {{USERNAME}} → "pending ~Xd (requested by @person)"
+   - Split into "Pending Review" and "Reviewed (Waiting on Author)" subsections
+10. Prefer clarity over completeness
+11. Return ONLY the Markdown content
 
 ---
 
@@ -310,3 +352,42 @@ If no actionable tasks are detected, generate a minimal brief containing:
 - Input may contain duplicated threads, quoted replies, timestamps, and noise
 - You must normalize and summarize this data
 
+---
+
+## Follow-ups Source (READ-ONLY)
+
+Read follow-ups from:
+
+```
+{{WORK_OS_DIR}}/follow-ups.md
+```
+
+Rules:
+- Read ONLY items under `## Active`
+- Do NOT modify this file
+- Do NOT create or resolve follow-ups here
+- Treat this file as the single source of truth
+
+---
+
+## ⏳ Follow-ups & Waiting (From Ledger)
+
+- [ ] [Follow-up title] — waiting on <person/system> — <age in days>
+  [[follow-ups#Active|source]]
+
+Rules:
+- Populate ONLY from `follow-ups.md → ## Active`
+- Sort by oldest `Since` date first
+- Max 5 items
+- Do NOT restate detailed context
+- Each item MUST backlink using `[[follow-ups#Active|source]]`
+- Omit this section entirely if there are no active follow-ups
+
+---
+
+## Addendum — Follow-up Handling Rules
+
+- Follow-ups shown in this file are **read-only projections**
+- The authoritative list lives in `follow-ups.md`
+- Prefer ledger-backed follow-ups over ad-hoc daily mentions
+- Do NOT duplicate the same follow-up across multiple sections
