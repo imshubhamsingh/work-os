@@ -99,4 +99,3 @@ impl WorkOsConfig {
             .map_or(false, |p| p.enabled && !p.values.is_empty())
     }
 }
-

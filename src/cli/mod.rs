@@ -36,6 +36,15 @@ pub enum Commands {
 
         #[arg(long, value_delimiter = ',')]
         plugins: Option<Vec<String>>,
+
+        #[arg(long, default_value = "today")]
+        mode: String,
+
+        #[arg(long)]
+        from: Option<String>,
+
+        #[arg(long)]
+        to: Option<String>,
     },
 }
 

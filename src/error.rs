@@ -4,7 +4,10 @@ use thiserror::Error;
 pub enum WorkOsError {
     #[error("Configuration error: {0}")]
     Config(String),
-    
+
+    #[error("State error: {0}")]
+    State(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

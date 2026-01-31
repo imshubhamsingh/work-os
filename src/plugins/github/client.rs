@@ -2,8 +2,8 @@ use crate::core::task::{
     GitHubMetadata, Person, PersonRole, Priority, ReviewCounts, Task, TaskMetadata, TaskType,
 };
 use crate::error::{Result, WorkOsError};
+use crate::models::date_range::DateRange;
 use crate::plugins::github::model::*;
-use chrono::{DateTime, TimeDelta, Utc};
 use octocrab::Octocrab;
 use std::fmt::Write;
 
@@ -74,16 +74,12 @@ impl GithubClient {
 
         let prs = self.get_pr_list(query).await?;
 
-        let cutoff = last_24_hr_cutoff();
-
         for pr in prs {
             let Some((owner, repo)) = Self::parse_repo_from_url(pr.html_url.as_str()) else {
                 continue;
             };
 
-            let pr_details = self
-                .get_pr_details(&owner, &repo, pr.number, cutoff)
-                .await?;
+            let pr_details = self.get_pr_details(&owner, &repo, pr.number).await?;
 
             let description = Self::build_pr_description(&pr_details);
             let review_state = Self::determine_review_state(&pr_details.reviews);
@@ -294,17 +290,13 @@ impl GithubClient {
         Ok(list.items)
     }
 
-    async fn get_pr_details(
-        &self,
-        owner: &str,
-        repo: &str,
-        pr_number: u64,
-        cutoff: DateTime<Utc>,
-    ) -> Result<PrDetails> {
+    async fn get_pr_details(&self, owner: &str, repo: &str, pr_number: u64) -> Result<PrDetails> {
+        let date_range = DateRange::get();
+
         let (reviews, comments, review_comments) = tokio::join!(
-            self.get_reviews(owner, repo, pr_number, cutoff),
-            self.get_comments(owner, repo, pr_number, cutoff),
-            self.get_review_comments(owner, repo, pr_number, cutoff),
+            self.get_reviews(owner, repo, pr_number, date_range),
+            self.get_comments(owner, repo, pr_number, date_range),
+            self.get_review_comments(owner, repo, pr_number, date_range),
         );
 
         Ok(PrDetails {
@@ -320,7 +312,7 @@ impl GithubClient {
         owner: &str,
         repo: &str,
         pr_number: u64,
-        cutoff: DateTime<Utc>,
+        date_range: &DateRange,
     ) -> Result<Vec<PrReview>> {
         println!(
             "API call to Github: reviews/{}/{}/{}",
@@ -339,7 +331,7 @@ impl GithubClient {
             .into_iter()
             .filter_map(|r| {
                 let submitted_at = r.submitted_at?;
-                if submitted_at < cutoff {
+                if !date_range.contains(submitted_at) {
                     return None;
                 }
 
@@ -365,11 +357,11 @@ impl GithubClient {
         owner: &str,
         repo: &str,
         pr_number: u64,
-        cutoff: DateTime<Utc>,
+        date_range: &DateRange,
     ) -> Result<Vec<PrComment>> {
         println!(
             "API call to Github: comments/{}/{}/{}/{}",
-            owner, repo, pr_number, cutoff
+            owner, repo, pr_number, date_range
         );
         let raw_comments = self
             .octocrab
@@ -383,7 +375,7 @@ impl GithubClient {
             .items
             .into_iter()
             .filter_map(|c| {
-                if c.created_at < cutoff {
+                if !date_range.contains(c.created_at) {
                     return None;
                 }
 
@@ -407,11 +399,11 @@ impl GithubClient {
         owner: &str,
         repo: &str,
         pr_number: u64,
-        cutoff: DateTime<Utc>,
+        date_range: &DateRange,
     ) -> Result<Vec<ReviewComment>> {
         println!(
             "API call to Github: review_comments/{}/{}/{}/{}",
-            owner, repo, pr_number, cutoff
+            owner, repo, pr_number, date_range
         );
         let raw_review_comments = self
             .octocrab
@@ -425,11 +417,10 @@ impl GithubClient {
             .items
             .into_iter()
             .filter_map(|c| {
-                if c.created_at < cutoff {
+                if !date_range.contains(c.created_at) {
                     return None;
                 }
                 if self.is_bot(c.user.as_ref()) {
-                    println!("Review comments by Vulcahno");
                     return None;
                 }
                 Some(ReviewComment {
@@ -463,10 +454,6 @@ fn truncate_text(text: &str, max_len: usize) -> String {
     }
     let truncated: String = chars.take(max_len).collect();
     format!("{}...", truncated)
-}
-
-fn last_24_hr_cutoff() -> DateTime<Utc> {
-    Utc::now() - TimeDelta::hours(24)
 }
 
 pub enum SearchType {

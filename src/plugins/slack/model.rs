@@ -50,11 +50,13 @@ pub struct SlackChannelPurpose {
     // pub last_set: u64,
 }
 
-// #[derive(Debug, Clone, Deserialize)]
-// pub struct SlackReaction {
-//     // pub name: String,
-//     // pub count: u32,
-// }
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SlackReaction {
+    pub name: String,
+    pub count: u32,
+    #[serde(default)]
+    pub users: Vec<String>,
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SlackMessage {
@@ -68,8 +70,8 @@ pub struct SlackMessage {
     pub thread_ts: Option<String>,
     #[serde(default)]
     pub reply_count: u32,
-    // #[serde(default)]
-    // pub reactions: Option<Vec<SlackReaction>>,
+    #[serde(default)]
+    pub reactions: Option<Vec<SlackReaction>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -166,4 +168,6 @@ pub struct SlackThreadMessage {
     pub user: String,
     pub ts: String,
     pub reply_count: Option<u32>,
+    #[serde(default)]
+    pub reactions: Option<Vec<SlackReaction>>,
 }

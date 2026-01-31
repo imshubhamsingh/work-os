@@ -1,7 +1,9 @@
 use crate::core::task::{PersonRole, Task};
 use crate::error::{Result, WorkOsError};
-use crate::generators::markdown::{MarkdownGenerator, format_duration, get_task_icon};
+use crate::generators::markdown::{format_duration, get_task_icon, MarkdownGenerator};
 use crate::models::config::WorkOsConfig;
+use crate::models::date_range::DateRange;
+use crate::models::state::WorkOsState;
 use crate::plugins::create_registry;
 use colored::*;
 
@@ -9,8 +11,22 @@ pub async fn run(
     json_output: bool,
     markdown: bool,
     plugin_filter: Option<Vec<String>>,
+    run_mode: String,
+    from_date: Option<String>,
+    to_date: Option<String>,
 ) -> Result<()> {
     let config = WorkOsConfig::load()?;
+    let mut state = WorkOsState::load()?;
+
+    let range = DateRange::resolve_date_range(
+        from_date.as_deref(),
+        to_date.as_deref(),
+        run_mode.as_str(),
+        &state,
+    )?;
+    println!("{}", "Date range:".dimmed());
+    println!("  {}", range.describe());
+    DateRange::init(range);
     let registry = create_registry(&config)?;
 
     println!("{}", "Plugins:".dimmed());
@@ -59,6 +75,9 @@ pub async fn run(
             output_path.unwrap().to_str().unwrap()
         );
     }
+
+    state.update_daily_brief(&range.mode)?;
+
     Ok(())
 }
 

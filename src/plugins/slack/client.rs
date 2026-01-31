@@ -8,6 +8,7 @@ use std::fmt::Write;
 
 use crate::core::task::{Task, TaskType};
 use crate::error::{Result, WorkOsError};
+use crate::models::date_range::DateRange;
 use crate::plugins::slack::model::*;
 
 const SLACK_API_BASE_URL: &str = "https://slack.com/api";
@@ -200,16 +201,14 @@ impl SlackClient {
             }
         };
 
-        let (oldest_timestamp, _) = last_24_hr_range();
-        let after_date = DateTime::from_timestamp(oldest_timestamp, 0)
-            // @todo fix this, some time zone issue.
-            .map(|dt| (dt - TimeDelta::hours(24)).format("%Y-%m-%d").to_string())
-            .unwrap_or_default();
+        let date_range = DateRange::get();
+        let after_date = (date_range.start - TimeDelta::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
 
-        let before_date = DateTime::from_timestamp(oldest_timestamp, 0)
-            .map(|dt| (dt + TimeDelta::hours(24)).format("%Y-%m-%d").to_string())
-            .unwrap_or_default();
-
+        let before_date = (date_range.end + TimeDelta::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
         let search_message_url = format!(
             "search.messages?query={} after:{} before:{}",
             search_query, after_date, before_date
@@ -308,7 +307,11 @@ impl SlackClient {
     }
 
     async fn get_channel_messages(&self, channel_id: &str) -> Result<Vec<SlackMessage>> {
-        let (oldest_timestamp, newest_timestamp) = last_24_hr_range();
+        // let (oldest_timestamp, newest_timestamp) = last_24_hr_range();
+
+        let date_range = DateRange::get();
+        let oldest_timestamp = date_range.start.timestamp();
+        let newest_timestamp = date_range.end.timestamp();
 
         let url = format!(
             "conversations.history?channel={}&limit={}&oldest={}&newest={}",
@@ -405,6 +408,32 @@ impl SlackClient {
     // Helpers
     // ============================
 
+    async fn format_reactions(&mut self, reactions: Option<&Vec<SlackReaction>>) -> Result<String> {
+        let Some(reactions) = reactions.filter(|r| !r.is_empty()) else {
+            return Ok(String::new());
+        };
+
+        let mut out = Vec::with_capacity(reactions.len());
+
+        for r in reactions {
+            let mut names = Vec::new();
+
+            for id in &r.users {
+                let user = self.get_user_info(id).await?;
+                if !user.is_unknown() {
+                    names.push(user.name.clone());
+                }
+            }
+
+            out.push(match names.is_empty() {
+                true => format!(":{}: {}", r.name, r.count),
+                false => format!(":{}: {} ({})", r.name, r.count, names.join(", ")),
+            });
+        }
+
+        Ok(format!(" [{}]", out.join(", ")))
+    }
+
     async fn get_valid_user(&mut self, user_id: &str) -> Result<Option<SlackUser>> {
         let user = self.get_user_info(user_id).await?;
 
@@ -454,6 +483,10 @@ impl SlackClient {
 
             if self.seen_messages.insert(message_key) {
                 let _ = writeln!(description, "{}: {}", author.name, text);
+                let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
+                if !reactions.is_empty() {
+                    let _ = writeln!(description, "  Reactions:{}", reactions);
+                }
             }
         }
 
@@ -477,6 +510,10 @@ impl SlackClient {
             let text = self.replace_user_id_with_handle(&msg.text).await?;
 
             let _ = writeln!(description, "{}: {}", author.name, text);
+            let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
+            if !reactions.is_empty() {
+                let _ = writeln!(description, "  Reactions:{}", reactions);
+            }
 
             let has_thread = match &msg.thread_ts {
                 Some(t) => t != &msg.ts || msg.reply_count > 0,
@@ -536,6 +573,10 @@ impl SlackClient {
             if !author.is_unknown() {
                 let msg = self.replace_user_id_with_handle(&t.text).await?;
                 let _ = writeln!(description, "{}: {}", author.name, msg);
+                let reactions = self.format_reactions(t.reactions.as_ref()).await?;
+                if !reactions.is_empty() {
+                    let _ = writeln!(description, "  Reactions:{}", reactions);
+                }
             }
         }
 
@@ -579,12 +620,12 @@ fn parse_ts(ts: &str) -> Option<DateTime<Utc>> {
         .map(|dt| dt.into())
 }
 
-fn last_24_hr_range() -> (i64, i64) {
-    let now = Utc::now().timestamp();
-    let day_ago = now - 86400;
-    let go_back_by_day: i64 = 0 * 86400;
-    (day_ago - go_back_by_day, now)
-}
+// fn last_24_hr_range() -> (i64, i64) {
+//     let now = Utc::now().timestamp();
+//     let day_ago = now - 86400;
+//     let go_back_by_day: i64 = 0 * 86400;
+//     (day_ago - go_back_by_day, now)
+// }
 
 fn extract_parent_ts(permalink: &str) -> Option<String> {
     let url = Url::parse(permalink).ok()?;

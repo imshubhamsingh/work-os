@@ -2,6 +2,7 @@ use crate::cli::auth::{create_test_plugin_by_id, test_plugin_auth};
 use crate::core::plugin::ConfigFieldType;
 use crate::error::WorkOsError;
 use crate::models::config::*;
+use crate::models::state::WorkOsState;
 use crate::models::terminal::*;
 use crate::plugins::get_all_plugins;
 use crate::{core::plugin::Plugin, error::Result};
@@ -41,6 +42,9 @@ pub async fn init(plugin_filter: Option<String>) -> Result<()> {
     }
 
     config.save()?;
+
+    let state = WorkOsState::load().unwrap_or_default();
+    state.save()?;
 
     println!(
         "\n✓ Configuration saved to: {:?}",

@@ -30,7 +30,10 @@ async fn main() {
             json,
             plugins,
             markdown,
-        } => cli::sync::run(json, markdown, plugins).await,
+            mode,
+            from,
+            to,
+        } => cli::sync::run(json, markdown, plugins, mode, from, to).await,
     };
 
     if let Err(e) = result {
