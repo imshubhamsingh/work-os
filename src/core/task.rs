@@ -17,7 +17,6 @@ pub struct Task {
     pub updated_at: DateTime<Utc>,
     pub due_date: Option<DateTime<Utc>>,
     pub people: Vec<Person>,
-    pub metadata: TaskMetadata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -64,41 +63,6 @@ pub enum PersonRole {
     Mentioned,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TaskMetadata {
-    GitHub(GitHubMetadata),
-    Slack(SlackMetadata),
-    // Jira(JiraMetadata),
-    None,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GitHubMetadata {
-    pub repo: String,
-    pub number: u64,
-    pub state: String,
-    pub comments: u32,
-    pub review_state: Option<String>,
-    pub review_counts: Option<ReviewCounts>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ReviewCounts {
-    pub approved: u32,
-    pub changes_requested: u32,
-    pub commented: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SlackMetadata {
-    pub name: String,
-    pub is_channel: bool,
-    pub is_mention: bool,
-    pub is_dm: bool,
-    pub is_mpim: bool,
-    pub is_user_group: bool,
-}
-
 impl Task {
     pub fn new(source: &str, task_type: TaskType, id: &str, title: String, url: String) -> Self {
         let now = Utc::now();
@@ -115,7 +79,6 @@ impl Task {
             updated_at: now,
             due_date: None,
             people: Vec::new(),
-            metadata: TaskMetadata::None,
         }
     }
 
@@ -140,8 +103,8 @@ impl Task {
         self
     }
 
-    pub fn with_metadata(mut self, metadata: TaskMetadata) -> Self {
-        self.metadata = metadata;
+    pub fn with_status(mut self, status: TaskStatus) -> Self {
+        self.status = status;
         self
     }
 }

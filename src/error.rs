@@ -16,6 +16,9 @@ pub enum WorkOsError {
 
     #[error("Slack API error: {0}")]
     Slack(String),
+
+    #[error("Jira API error: {0}")]
+    Jira(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkOsError>;

@@ -59,6 +59,13 @@ impl std::fmt::Display for ReviewState {
     }
 }
 
+// #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+// pub struct ReviewCounts {
+//     pub approved: u32,
+//     pub changes_requested: u32,
+//     pub commented: u32,
+// }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PrComment {
     pub author: String,
@@ -73,4 +80,3 @@ pub struct ReviewComment {
     pub path: String,
     pub created_at: DateTime<Utc>,
 }
-

@@ -1,4 +1,5 @@
 pub mod github;
+pub mod jira;
 pub mod slack;
 
 use crate::core::plugin::Plugin;
@@ -6,6 +7,7 @@ use crate::core::registry::PluginRegistry;
 use crate::error::Result;
 use crate::models::config::WorkOsConfig;
 use crate::plugins::github::GithubPlugin;
+use crate::plugins::jira::JiraPlugin;
 use crate::plugins::slack::SlackPlugin;
 
 pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
@@ -31,11 +33,23 @@ pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     }
     registry.register(Box::new(slack_plugin));
 
-    // TODO: Register Jira plugin
+    let mut jira_plugin = JiraPlugin::new();
+    if let Some(jira_config) = config.get_plugin("jira") {
+        if jira_config.enabled {
+            if let Err(e) = jira_plugin.configure_from_values(&jira_config.values) {
+                eprintln!("Warning: Failed to configure Jira: {}", e);
+            }
+        }
+    }
+    registry.register(Box::new(jira_plugin));
 
     Ok(registry)
 }
 
 pub fn get_all_plugins() -> Vec<Box<dyn Plugin>> {
-    vec![Box::new(GithubPlugin::new()), Box::new(SlackPlugin::new())]
+    vec![
+        Box::new(GithubPlugin::new()),
+        Box::new(SlackPlugin::new()),
+        Box::new(JiraPlugin::new()),
+    ]
 }

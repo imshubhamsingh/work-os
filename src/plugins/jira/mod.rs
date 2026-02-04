@@ -1,0 +1,140 @@
+mod client;
+mod config;
+mod model;
+
+use crate::core::plugin::{ConfigField, ConfigFieldType, Plugin, PluginMetadata};
+use crate::core::task::Task;
+use crate::error::{Result, WorkOsError};
+use async_trait::async_trait;
+use client::JiraClient;
+use config::JiraConfig;
+use std::collections::HashMap;
+use toml::Value;
+
+pub struct JiraPlugin {
+    client: Option<JiraClient>,
+    config: Option<JiraConfig>,
+}
+
+impl JiraPlugin {
+    pub fn new() -> Self {
+        Self {
+            client: None,
+            config: None,
+        }
+    }
+
+    pub fn configure(&mut self, config: JiraConfig) -> Result<()> {
+        let client = JiraClient::new(&config)?;
+        self.client = Some(client);
+        self.config = Some(config);
+        Ok(())
+    }
+}
+
+impl Default for JiraPlugin {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl Plugin for JiraPlugin {
+    fn metadata(&self) -> PluginMetadata {
+        PluginMetadata {
+            id: "jira",
+            name: "Jira",
+            description: "Fetch issues from Jira/Atlassian",
+            icon: "🎫",
+        }
+    }
+
+    fn is_configured(&self) -> bool {
+        self.client.is_some()
+    }
+
+    fn config_schema(&self) -> Vec<ConfigField> {
+        vec![
+            ConfigField {
+                name: "domain",
+                label: "Jira Domain",
+                help: "Your Atlassian domain (e.g., company.atlassian.net)",
+                field_type: ConfigFieldType::String,
+                required: true,
+                default: None,
+            },
+            ConfigField {
+                name: "email",
+                label: "Email",
+                help: "Email address for authentication",
+                field_type: ConfigFieldType::String,
+                required: true,
+                default: None,
+            },
+            ConfigField {
+                name: "api_token",
+                label: "API Token",
+                help: "API token from https://id.atlassian.com/manage-profile/security/api-tokens",
+                field_type: ConfigFieldType::Secret,
+                required: true,
+                default: None,
+            },
+        ]
+    }
+
+    fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()> {
+        let domain = values
+            .get("domain")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| WorkOsError::Config("Jira missing 'domain'".into()))?
+            .to_string();
+
+        let email = values
+            .get("email")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| WorkOsError::Config("Jira missing 'email'".into()))?
+            .to_string();
+
+        let api_token = values
+            .get("api_token")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| WorkOsError::Config("Jira missing 'api_token'".into()))?
+            .to_string();
+
+        let filters = values
+            .get("filters")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| JiraConfig::parse_filter(v).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let jira_config = JiraConfig {
+            domain,
+            email,
+            api_token,
+            filters,
+        };
+
+        self.configure(jira_config)
+    }
+
+    async fn test_connection(&self) -> Result<bool> {
+        match &self.client {
+            Some(client) => client.test_connection().await,
+            None => Ok(false),
+        }
+    }
+
+    async fn fetch_tasks(&self) -> Result<Vec<Task>> {
+        match &self.client {
+            Some(_client) => {
+                let mut client_clone = JiraClient::new(self.config.as_ref().unwrap())?;
+                client_clone.get_all_tasks().await
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+}

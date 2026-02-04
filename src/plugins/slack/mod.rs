@@ -81,7 +81,7 @@ impl Plugin for SlackPlugin {
                 field_type: ConfigFieldType::StringList,
                 required: false,
                 default: None,
-            }
+            },
         ]
     }
 

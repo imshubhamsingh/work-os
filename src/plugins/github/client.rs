@@ -1,6 +1,4 @@
-use crate::core::task::{
-    GitHubMetadata, Person, PersonRole, Priority, ReviewCounts, Task, TaskMetadata, TaskType,
-};
+use crate::core::task::{Person, PersonRole, Priority, Task, TaskType};
 use crate::error::{Result, WorkOsError};
 use crate::models::date_range::DateRange;
 use crate::plugins::github::model::*;
@@ -82,8 +80,6 @@ impl GithubClient {
             let pr_details = self.get_pr_details(&owner, &repo, pr.number).await?;
 
             let description = Self::build_pr_description(&pr_details);
-            let review_state = Self::determine_review_state(&pr_details.reviews);
-            let review_counts = Self::build_review_counts(&pr_details.reviews);
 
             let mut task = Task::new(
                 "github",
@@ -98,14 +94,6 @@ impl GithubClient {
                 username: pr.user.login.clone(),
                 role: PersonRole::Author,
             })
-            .with_metadata(TaskMetadata::GitHub(GitHubMetadata {
-                repo: repo.clone(),
-                number: pr.number,
-                state: serde_json::to_string(&pr.state).unwrap_or_default(),
-                comments: pr.comments,
-                review_state,
-                review_counts: Some(review_counts),
-            }))
             .with_priority(Priority::Unknown);
 
             if !description.is_empty() {
@@ -191,22 +179,22 @@ impl GithubClient {
         }
     }
 
-    fn build_review_counts(reviews: &[PrReview]) -> ReviewCounts {
-        ReviewCounts {
-            approved: reviews
-                .iter()
-                .filter(|r| r.state == ReviewState::Approved)
-                .count() as u32,
-            changes_requested: reviews
-                .iter()
-                .filter(|r| r.state == ReviewState::ChangesRequested)
-                .count() as u32,
-            commented: reviews
-                .iter()
-                .filter(|r| r.state == ReviewState::Commented)
-                .count() as u32,
-        }
-    }
+    // fn build_review_counts(reviews: &[PrReview]) -> ReviewCounts {
+    //     ReviewCounts {
+    //         approved: reviews
+    //             .iter()
+    //             .filter(|r| r.state == ReviewState::Approved)
+    //             .count() as u32,
+    //         changes_requested: reviews
+    //             .iter()
+    //             .filter(|r| r.state == ReviewState::ChangesRequested)
+    //             .count() as u32,
+    //         commented: reviews
+    //             .iter()
+    //             .filter(|r| r.state == ReviewState::Commented)
+    //             .count() as u32,
+    //     }
+    // }
 
     fn build_pr_description(details: &PrDetails) -> String {
         let mut desc = String::new();
@@ -259,6 +247,13 @@ impl GithubClient {
             }
 
             let _ = writeln!(desc);
+        }
+
+        let review_state = Self::determine_review_state(&details.reviews);
+        // let review_counts = Self::build_review_counts(&details.reviews);
+
+        if let Some(review_state) = review_state {
+            let _ = writeln!(desc, "Review current state: {}", review_state);
         }
 
         desc.trim_end().to_string()
