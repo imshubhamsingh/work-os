@@ -50,6 +50,7 @@ impl SlackClient {
 
         all_tasks.extend(self.get_all_channel_messages().await?);
         all_tasks.extend(self.get_all_mentions(None).await?);
+        all_tasks.extend(self.get_all_my_messages().await?);
         all_tasks.extend(self.get_all_dms().await?);
         all_tasks.extend(self.get_all_group_dms().await?);
         all_tasks.extend(self.get_all_keywords_messages().await?);
@@ -273,6 +274,73 @@ impl SlackClient {
             let task = Self::build_task(
                 &result.channel.id,
                 format!("Mention in {}{}", channel_name, query_name),
+                result.permalink.clone(),
+                description,
+                updated_at,
+            );
+
+            tasks.push(task);
+        }
+
+        Ok(tasks)
+    }
+
+    async fn get_all_my_messages(&mut self) -> Result<Vec<Task>> {
+        let mut tasks = Vec::new();
+
+        let current_user: SlackResponse<AuthTestData> = self.get("auth.test").await?;
+        let user_id = current_user
+            .data
+            .expect("auth.test must return data")
+            .user_id;
+
+        let date_range = DateRange::get();
+        let after_date = (date_range.start - TimeDelta::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
+        let before_date = (date_range.end + TimeDelta::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        let search_message_url = format!(
+            "search.messages?query=from:<@{}> after:{} before:{}",
+            user_id, after_date, before_date
+        );
+        let my_messages: SlackResponse<SlackSearch> = self.get(&search_message_url).await?;
+
+        if !my_messages.ok {
+            return Ok(Vec::new());
+        }
+
+        let matches = my_messages
+            .data
+            .map(|d| d.messages.matches)
+            .unwrap_or_default();
+
+        if matches.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        for result in matches.iter() {
+            // dm and group dm are skipped
+            if result.channel.id.starts_with("D") || result.channel.id.starts_with("G") {
+                continue;
+            }
+
+            let updated_at = parse_ts(&result.ts).unwrap_or_else(Utc::now);
+
+            let author = self.get_user_info(&result.user).await?;
+
+            if author.is_unknown() {
+                continue;
+            }
+
+            let formatted_text = self.replace_user_id_with_handle(&result.text).await?;
+            let description = format!("{}: {}", author.name, formatted_text);
+
+            let task = Self::build_task(
+                &result.channel.id,
+                format!("My message in #{}", result.channel.name),
                 result.permalink.clone(),
                 description,
                 updated_at,

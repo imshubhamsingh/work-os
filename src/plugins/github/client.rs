@@ -52,6 +52,12 @@ impl GithubClient {
 
         let mut all_tasks = Self::deduplicate_tasks(all_tasks);
 
+        // Add AI usage statistics task
+        match self.generate_ai_stats().await {
+            Ok(stats_task) => all_tasks.push(stats_task),
+            Err(e) => eprintln!("Warning: Failed to generate AI stats: {}", e),
+        }
+
         all_tasks.sort_by(|a, b| a.created_at.cmp(&b.created_at));
 
         Ok(all_tasks)
@@ -120,6 +126,11 @@ impl GithubClient {
                 search_type, self.username, repo_filter
             )
         }
+    }
+
+    /// Build search query without repo filtering (for AI stats that should cover all repos)
+    fn build_search_query_no_filter(&self, search_type: SearchType) -> String {
+        format!("is:pr is:open {}:{}", search_type, self.username)
     }
 
     fn build_repo_filter(&self) -> String {
@@ -449,6 +460,160 @@ fn truncate_text(text: &str, max_len: usize) -> String {
     }
     let truncated: String = chars.take(max_len).collect();
     format!("{}...", truncated)
+}
+
+    // ============================
+    // AI Usage Tracking
+    // ============================
+
+impl GithubClient {
+    /// Generate AI usage statistics for merged/updated PRs in the date range
+    pub async fn generate_ai_stats(&self) -> Result<Task> {
+        use crate::plugins::github::ai_stats::{AIUsageStats, PrAIStats};
+        use crate::plugins::github::commit_analyzer::CommitMessageAnalyzer;
+
+        let date_range = DateRange::get();
+        let stats_date = date_range.end.date_naive();
+        let mut stats = AIUsageStats::new(stats_date);
+
+        // Get all PRs from all repos (not filtered by include_repos config)
+        let all_prs = self.get_all_pr_tasks_unfiltered().await?;
+
+        let analyzer = CommitMessageAnalyzer::new();
+
+        for task in all_prs {
+            // Filter by date range - only include PRs updated within the range
+            if task.updated_at < date_range.start || task.updated_at > date_range.end {
+                continue;
+            }
+            // Extract PR info from task ID (format: "github:pr:owner/repo#number")
+            let pr_info = match Self::parse_pr_id(&task.id) {
+                Some(info) => info,
+                None => continue,
+            };
+
+            // Fetch PR details to get LOC stats
+            let pr = match self
+                .octocrab
+                .pulls(&pr_info.owner, &pr_info.repo)
+                .get(pr_info.number)
+                .await
+            {
+                Ok(pr) => pr,
+                Err(_) => continue,
+            };
+
+            let lines_added = pr.additions.unwrap_or(0) as u32;
+            let lines_deleted = pr.deletions.unwrap_or(0) as u32;
+
+            if lines_added == 0 {
+                continue; // Skip PRs with no code changes
+            }
+
+            // Fetch commit messages
+            let commits = match self.get_pr_commits(&pr_info.owner, &pr_info.repo, pr_info.number).await {
+                Ok(commits) => commits,
+                Err(_) => continue,
+            };
+
+            // Analyze commits for AI usage
+            let analysis = analyzer.analyze_pr_commits(&commits);
+
+            // Calculate AI vs Human LOC
+            let ai_loc = (lines_added as f32 * analysis.aggregate_score).round() as u32;
+            let human_loc = lines_added.saturating_sub(ai_loc);
+
+            stats.add_pr(PrAIStats {
+                pr_number: pr_info.number,
+                repo: format!("{}/{}", pr_info.owner, pr_info.repo),
+                title: task.title.clone(),
+                lines_added,
+                lines_deleted,
+                ai_score: analysis.aggregate_score,
+                ai_loc,
+                human_loc,
+                commit_count: analysis.commit_count,
+                has_explicit_attribution: analysis.has_explicit_attribution,
+            });
+        }
+
+        Ok(stats.to_task())
+    }
+
+    /// Get commit messages for a PR
+    async fn get_pr_commits(&self, owner: &str, repo: &str, pr_number: u64) -> Result<Vec<(String, String)>> {
+        use octocrab::Page;
+
+        let route = format!("/repos/{}/{}/pulls/{}/commits", owner, repo, pr_number);
+        let commits: Page<octocrab::models::repos::RepoCommit> = self
+            .octocrab
+            .get(&route, None::<&()>)
+            .await
+            .map_err(|e| WorkOsError::GitHub(e.to_string()))?;
+
+        let mut result = Vec::new();
+        for commit in commits.items {
+            result.push((commit.sha, commit.commit.message));
+        }
+
+        Ok(result)
+    }
+
+    /// Get all PR tasks without deduplication
+    async fn get_all_pr_tasks(&self) -> Result<Vec<Task>> {
+        let mut tasks = Vec::new();
+        tasks.extend(self.get_involved_prs().await?);
+        tasks.extend(self.get_authored_prs().await?);
+        Ok(tasks)
+    }
+
+    /// Get all PR tasks without repo filtering (for AI stats)
+    async fn get_all_pr_tasks_unfiltered(&self) -> Result<Vec<Task>> {
+        let mut tasks = Vec::new();
+
+        // Get involved PRs without repo filter
+        let involved_query = self.build_search_query_no_filter(SearchType::Involved);
+        tasks.extend(self.get_prs(&involved_query).await?);
+
+        // Get authored PRs without repo filter
+        let authored_query = self.build_search_query_no_filter(SearchType::Author);
+        tasks.extend(self.get_prs(&authored_query).await?);
+
+        Ok(tasks)
+    }
+
+    /// Parse PR ID from task ID (format: "github:pr:owner/repo#number")
+    fn parse_pr_id(task_id: &str) -> Option<PrInfo> {
+        let parts: Vec<&str> = task_id.split(':').collect();
+        if parts.len() < 3 || parts[0] != "github" || parts[1] != "pr" {
+            return None;
+        }
+
+        let pr_part = parts[2];
+        let repo_pr: Vec<&str> = pr_part.split('#').collect();
+        if repo_pr.len() != 2 {
+            return None;
+        }
+
+        let owner_repo: Vec<&str> = repo_pr[0].split('/').collect();
+        if owner_repo.len() != 2 {
+            return None;
+        }
+
+        let number = repo_pr[1].parse::<u64>().ok()?;
+
+        Some(PrInfo {
+            owner: owner_repo[0].to_string(),
+            repo: owner_repo[1].to_string(),
+            number,
+        })
+    }
+}
+
+struct PrInfo {
+    owner: String,
+    repo: String,
+    number: u64,
 }
 
 pub enum SearchType {

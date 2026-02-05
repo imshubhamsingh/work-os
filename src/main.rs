@@ -34,6 +34,7 @@ async fn main() {
             from,
             to,
         } => cli::sync::run(json, markdown, plugins, mode, from, to).await,
+        Commands::Stats { r#type, markdown } => cli::stats::run(&r#type, markdown).await,
     };
 
     if let Err(e) = result {

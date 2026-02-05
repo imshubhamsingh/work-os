@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 pub mod auth;
 pub mod config;
 pub mod sync;
+pub mod stats;
 
 #[derive(Parser)]
 #[command(name = "work-os")]
@@ -45,6 +46,16 @@ pub enum Commands {
 
         #[arg(long)]
         to: Option<String>,
+    },
+
+    /// Show statistics
+    Stats {
+        /// Type of statistics (code-ai-usage, time, etc.)
+        #[arg(long, default_value = "code-ai-usage")]
+        r#type: String,
+
+        #[arg(long)]
+        markdown: bool,
     },
 }
 

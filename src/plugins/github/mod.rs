@@ -1,5 +1,7 @@
 mod client;
 pub mod model;
+pub mod ai_stats;
+pub mod commit_analyzer;
 
 use std::collections::HashMap;
 
@@ -29,6 +31,14 @@ impl GithubPlugin {
         self.config = Some(config);
         self.client = Some(client);
         Ok(())
+    }
+
+    /// Fetch AI usage statistics only
+    pub async fn fetch_ai_stats(&self) -> Result<Task> {
+        match &self.client {
+            Some(client) => client.generate_ai_stats().await,
+            None => Err(WorkOsError::Config("GitHub client not initialized".into())),
+        }
     }
 }
 
