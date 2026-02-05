@@ -2,7 +2,9 @@ mod client;
 mod config;
 mod model;
 
-use crate::core::plugin::{ConfigField, ConfigFieldType, Plugin, PluginMetadata};
+use crate::core::plugin::{
+    ConfigField, ConfigFieldType, NestedFieldSchema, Plugin, PluginMetadata,
+};
 use crate::core::task::Task;
 use crate::error::{Result, WorkOsError};
 use async_trait::async_trait;
@@ -77,6 +79,39 @@ impl Plugin for JiraPlugin {
                 help: "API token from https://id.atlassian.com/manage-profile/security/api-tokens",
                 field_type: ConfigFieldType::Secret,
                 required: true,
+                default: None,
+            },
+            ConfigField {
+                name: "filters",
+                label: "Jira Filters",
+                help: "JQL filters to fetch specific issues from Jira",
+                field_type: ConfigFieldType::NestedArray(vec![
+                    NestedFieldSchema {
+                        name: "name",
+                        label: "Filter Name",
+                        help: "Display name for this filter (e.g., 'My Active Tasks')",
+                        field_type: ConfigFieldType::String,
+                        required: true,
+                        default: None,
+                    },
+                    NestedFieldSchema {
+                        name: "jql",
+                        label: "JQL Query",
+                        help: "Jira Query Language expression (e.g., 'project = EM AND assignee = currentUser()')",
+                        field_type: ConfigFieldType::String,
+                        required: true,
+                        default: None,
+                    },
+                    NestedFieldSchema {
+                        name: "priority",
+                        label: "Priority",
+                        help: "Priority level: critical, high, medium, or low",
+                        field_type: ConfigFieldType::String,
+                        required: false,
+                        default: Some("medium"),
+                    },
+                ]),
+                required: false,
                 default: None,
             },
         ]

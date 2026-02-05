@@ -18,8 +18,19 @@ pub enum ConfigFieldType {
     String,
     Secret,
     StringList,
+    NestedArray(Vec<NestedFieldSchema>),
     // Integer,
     // Boolean,
+}
+
+#[derive(Debug, Clone)]
+pub struct NestedFieldSchema {
+    pub name: &'static str,
+    pub label: &'static str,
+    pub help: &'static str,
+    pub field_type: ConfigFieldType,
+    pub required: bool,
+    pub default: Option<&'static str>,
 }
 
 impl ConfigFieldType {
@@ -29,8 +40,12 @@ impl ConfigFieldType {
             Value::Integer(i) => i.to_string(),
             Value::Boolean(b) => b.to_string(),
             Value::Array(arr) => {
-                let items: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
-                items.join(", ")
+                if arr.iter().any(|v| v.is_table()) {
+                    format!("{} item(s)", arr.len())
+                } else {
+                    let items: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
+                    items.join(", ")
+                }
             }
             _ => value.to_string(),
         }
@@ -47,14 +62,17 @@ impl ConfigFieldType {
                     .collect();
                 Value::Array(items)
             }
-            // ConfigFieldType::Integer => input
-            //     .parse::<i64>()
-            //     .map(Value::Integer)
-            //     .unwrap_or_else(|_| Value::String(input.to_string())),
-            // ConfigFieldType::Boolean => {
-            //     let lower = input.to_lowercase();
-            //     Value::Boolean(lower == "y" || lower == "yes" || lower == "true" || lower == "1")
-            // }
+            ConfigFieldType::NestedArray(_) => {
+                // NestedArray is handled by interactive prompts, not string parsing
+                Value::Array(Vec::new())
+            } // ConfigFieldType::Integer => input
+              //     .parse::<i64>()
+              //     .map(Value::Integer)
+              //     .unwrap_or_else(|_| Value::String(input.to_string())),
+              // ConfigFieldType::Boolean => {
+              //     let lower = input.to_lowercase();
+              //     Value::Boolean(lower == "y" || lower == "yes" || lower == "true" || lower == "1")
+              // }
         }
     }
 }

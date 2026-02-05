@@ -34,12 +34,13 @@ pub struct SlackChannel {
     // pub is_group: bool,
     #[serde(default)]
     pub is_im: bool,
-    // #[serde(default)]
-    // pub is_mpim: bool,
+    #[serde(default)]
+    pub is_mpim: bool,
     #[serde(default)]
     pub user: Option<String>,
     pub purpose: Option<SlackChannelPurpose>,
 }
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct SlackChannelPurpose {
     #[serde(default)]
@@ -115,6 +116,32 @@ impl SlackUser {
     pub fn is_unknown(&self) -> bool {
         self.id == Self::UNKNOWN_ID
     }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SlackUserGroup {
+    pub id: String,
+    pub handle: String,
+}
+
+impl SlackUserGroup {
+    pub const UNKNOWN_ID: &'static str = "-1";
+
+    pub fn unknown(group_id: &str) -> SlackUserGroup {
+        SlackUserGroup {
+            id: Self::UNKNOWN_ID.to_string(),
+            handle: format!("unknown-group-{}", group_id),
+        }
+    }
+
+    pub fn is_unknown(&self) -> bool {
+        self.id == Self::UNKNOWN_ID
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UserGroupsListData {
+    pub usergroups: Vec<SlackUserGroup>,
 }
 
 #[derive(Debug, Deserialize)]

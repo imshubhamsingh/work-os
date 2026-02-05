@@ -21,6 +21,7 @@ pub struct SlackClient {
     keywords: Vec<String>,
     channels: Vec<String>,
     user_cache: HashMap<String, SlackUser>,
+    user_group_cache: HashMap<String, SlackUserGroup>,
     channel_cache: HashMap<String, Option<SlackChannel>>,
     seen_messages: HashSet<String>,
 }
@@ -33,6 +34,7 @@ impl SlackClient {
             keywords: config.keywords.clone(),
             channels: config.channels.clone(),
             user_cache: HashMap::new(),
+            user_group_cache: HashMap::new(),
             channel_cache: HashMap::new(),
             seen_messages: HashSet::new(),
         })
@@ -301,8 +303,10 @@ impl SlackClient {
 
         Ok(channels
             .into_iter()
-            .filter(|c| c.is_member || c.is_im)
-            .filter(|c| self.channels.is_empty() || self.channels.contains(&c.id))
+            .filter(|c| c.is_im || c.is_member)
+            .filter(|c| {
+                c.is_im || c.is_mpim || self.channels.is_empty() || self.channels.contains(&c.id)
+            })
             .collect())
     }
 
@@ -386,6 +390,28 @@ impl SlackClient {
         Ok(user)
     }
 
+    async fn get_usergroup_info(&mut self, usergroup_id: &str) -> Result<SlackUserGroup> {
+        if self.user_group_cache.is_empty() {
+            let url = "usergroups.list";
+
+            if let Ok(response) = self.get::<SlackResponse<UserGroupsListData>>(&url).await {
+                if response.ok {
+                    if let Some(data) = response.data {
+                        for group in data.usergroups {
+                            self.user_group_cache.insert(group.id.clone(), group);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(self
+            .user_group_cache
+            .get(usergroup_id)
+            .cloned()
+            .unwrap_or_else(|| SlackUserGroup::unknown(usergroup_id)))
+    }
+
     async fn get<T: DeserializeOwned>(&self, end_point: &str) -> Result<T> {
         println!("API call to Slack: {}", &end_point);
         let url = format!("{}/{}", SLACK_API_BASE_URL, end_point);
@@ -445,10 +471,11 @@ impl SlackClient {
     }
 
     async fn replace_user_id_with_handle(&mut self, description: &str) -> Result<String> {
-        let reg = Regex::new(r"<@([A-Z0-9]+)(?:\|[^>]+)?>").unwrap();
         let mut result = description.to_string();
 
-        for cap in reg.captures_iter(description) {
+        // replace user mentions: <@USER_ID> or <@USER_ID|@username>
+        let user_reg = Regex::new(r"<@([A-Z0-9]+)(?:\|[^>]+)?>").unwrap();
+        for cap in user_reg.captures_iter(description) {
             let user_id = &cap[1];
             let full_match = cap.get(0).unwrap().as_str();
 
@@ -457,6 +484,20 @@ impl SlackClient {
             if !user.is_unknown() {
                 let handle = format!("@{}", user.name);
                 result = result.replace(full_match, &handle)
+            }
+        }
+
+        // replace user group mentions: <!subteam^SUBTEAM_ID>
+        let subteam_reg = Regex::new(r"<!subteam\^([A-Z0-9]+)>").unwrap();
+        for cap in subteam_reg.captures_iter(&result.clone()) {
+            let subteam_id = &cap[1];
+            let full_match = cap.get(0).unwrap().as_str();
+
+            let usergroup = self.get_usergroup_info(subteam_id).await?;
+
+            if !usergroup.is_unknown() {
+                let handle = format!("@{}", usergroup.handle);
+                result = result.replace(full_match, &handle);
             }
         }
 

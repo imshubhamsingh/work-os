@@ -50,8 +50,7 @@ impl JiraClient {
             return Ok(Vec::new());
         }
 
-        // Collect filter info first to avoid borrow conflict
-        let filter_info: Vec<(String, Priority, String)> = self
+        let filters: Vec<(String, Priority, String)> = self
             .filters
             .iter()
             .filter(|f| f.enabled)
@@ -72,7 +71,7 @@ impl JiraClient {
 
         let mut all_tasks = Vec::new();
 
-        for (jql_with_date, priority, name) in filter_info {
+        for (jql_with_date, priority, name) in filters {
             match self.search_issues(&jql_with_date, priority).await {
                 Ok(tasks) => all_tasks.extend(tasks),
                 Err(e) => println!("Filter '{}' error: {}", name, e),
