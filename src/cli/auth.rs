@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::core::plugin::Plugin;
 use crate::error::{Result, WorkOsError};
@@ -17,13 +18,22 @@ pub async fn test_all_plugin_auth(plugin_filter: Option<String>) -> Result<()> {
                 continue;
             }
         }
-        test_plugin_auth(plugin_id, config.get_plugin(plugin_id)).await?;
+        test_plugin_auth(
+            plugin_id,
+            config.get_plugin(plugin_id),
+            &config.output.base_path,
+        )
+        .await?;
     }
 
     Ok(())
 }
 
-pub async fn test_plugin_auth(plugin_id: &str, plugin_config: Option<&PluginConfig>) -> Result<()> {
+pub async fn test_plugin_auth(
+    plugin_id: &str,
+    plugin_config: Option<&PluginConfig>,
+    base_path: &PathBuf,
+) -> Result<()> {
     let strict = plugin_config.is_some();
 
     let owned_values;
@@ -45,7 +55,7 @@ pub async fn test_plugin_auth(plugin_id: &str, plugin_config: Option<&PluginConf
     };
 
     let mut test_plugin = create_test_plugin_by_id(plugin_id)?;
-    test_plugin.configure_from_values(plugin_config_values)?;
+    test_plugin.configure_from_values(plugin_config_values, base_path)?;
 
     match test_plugin.test_connection().await {
         Ok(true) => {

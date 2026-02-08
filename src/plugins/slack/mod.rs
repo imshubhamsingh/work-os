@@ -2,6 +2,7 @@ mod client;
 mod model;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use async_trait::async_trait;
 pub use client::SlackClient;
@@ -85,7 +86,7 @@ impl Plugin for SlackPlugin {
         ]
     }
 
-    fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()> {
+    fn configure_from_values(&mut self, values: &HashMap<String, Value>, _base_path: &PathBuf) -> Result<()> {
         let token = values
             .get("token")
             .and_then(|v| v.as_str())

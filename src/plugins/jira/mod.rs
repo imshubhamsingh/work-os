@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use client::JiraClient;
 use config::JiraConfig;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use toml::Value;
 
 pub struct JiraPlugin {
@@ -117,7 +118,11 @@ impl Plugin for JiraPlugin {
         ]
     }
 
-    fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()> {
+    fn configure_from_values(
+        &mut self,
+        values: &HashMap<String, Value>,
+        _base_path: &PathBuf,
+    ) -> Result<()> {
         let domain = values
             .get("domain")
             .and_then(|v| v.as_str())

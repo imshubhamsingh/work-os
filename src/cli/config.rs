@@ -73,7 +73,12 @@ async fn configure_plugin_interactive(
 
     println!("\nTesting connection...");
 
-    test_plugin_auth(&meta.id, Some(&plugin_config.clone())).await
+    test_plugin_auth(
+        &meta.id,
+        Some(&plugin_config.clone()),
+        &config.output.base_path,
+    )
+    .await
 }
 
 pub async fn set(plugin_id: &str, key: &str, value: &str) -> Result<()> {

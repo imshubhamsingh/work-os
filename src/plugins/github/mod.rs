@@ -4,6 +4,7 @@ pub mod ai_stats;
 pub mod commit_analyzer;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub use crate::core::plugin::{ConfigField, Plugin, PluginMetadata};
 pub use crate::error::Result;
@@ -97,7 +98,7 @@ impl Plugin for GithubPlugin {
         ]
     }
 
-    fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()> {
+    fn configure_from_values(&mut self, values: &HashMap<String, Value>, _base_path: &PathBuf) -> Result<()> {
         let token = values
             .get("token")
             .and_then(|v| v.as_str())

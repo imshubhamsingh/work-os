@@ -19,6 +19,9 @@ pub enum WorkOsError {
 
     #[error("Jira API error: {0}")]
     Jira(String),
+
+    #[error("Granola error: {0}")]
+    Granola(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkOsError>;
