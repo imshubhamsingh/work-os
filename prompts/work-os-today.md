@@ -10,8 +10,12 @@ You are generating a concise daily work brief in Markdown from work-os raw Markd
 You will read raw Markdown files matching **today's date only** from:
 
 ```
-~/Projects/obsidian/work/00-work-os/raw/{TODAY-DATE}-{TIME_STAMP}.md
+$WORK_OS_BASE_DIR/raw/{TODAY-DATE}-*.md
 ```
+
+**Environment Variables:**
+- `$WORK_OS_BASE_DIR`: Base directory for work-os data
+  - Example: `~/Projects/obsidian/work/00-work-os`
 
 There may be multiple files for today (different sync timestamps) — read all of them. Do NOT read files from previous days.
 
@@ -31,7 +35,8 @@ Each file contains semi-structured activity logs and task information from sourc
 - Use horizontal separators (---) between major sections
 - Group context items by topic with ### headers
 - **Delete/Group DM Filter:** Extract ONLY work-related tasks or critical context. Ignore casual chatter and resolved scheduling.
-- **Ack Reaction:** Any message reacted with `:ack:` **by you** indicates explicit acknowledgement and must be treated as a "Must Do" item regardless of other filters.
+- **Ack Reaction:** Any message reacted with your acknowledgment emoji **by you** indicates explicit acknowledgement and must be treated as a "Must Do" item regardless of other filters.
+  - Configure via `$ACK_REACTION` (Example: `:ack:`)
 - **Crucial Items:** Place extremely important items in "Must Do" and **bold the description**.
 
 ---
@@ -40,7 +45,7 @@ Each file contains semi-structured activity logs and task information from sourc
 
 | Category | Rule |
 |------------|------|
-| Must Do | Directly owned by you (author, assignee, explicitly requested, or marked with `:ack:` reaction **by you**). **Bold description if extremely/crucially important.** Break down into sub-tasks with validation steps. Link to Jira ticket when the task corresponds to one. |
+| Must Do | Directly owned by you (author, assignee, explicitly requested, or marked with `$ACK_REACTION` **by you**). **Bold description if extremely/crucially important.** Break down into sub-tasks with validation steps. Link to Jira ticket when the task corresponds to one. |
 | Release-Critical PRs | PRs that block an upcoming release/launch discussed in Slack. Include release name/date and PR status. Link related Jira epic/ticket when present. |
 | Reviews | PR reviews explicitly pending by you. **Check GitHub data for review status first.** Include time pending and requester. Add Jira link if PR is linked to a ticket. |
 | Follow-ups | Items waiting on others, scheduled, or blocked. Specify who/what is blocking. Include Jira link when the follow-up maps to a Jira task. |
@@ -52,8 +57,11 @@ Each file contains semi-structured activity logs and task information from sourc
 **Before listing any PR as "pending review", check the GitHub data in raw files for review indicators:**
 
 1. Look for `Reviews:` section under each PR entry
-2. If `{YOUR_GITHUB_USERNAME}:Commented` or `{YOUR_GITHUB_USERNAME}:Approved` appears → PR is **already reviewed**
-3. If `Review Comments:` section contains comments from `{YOUR_GITHUB_USERNAME}` → PR is **already reviewed**
+2. If `$GITHUB_USERNAME:Commented` or `$GITHUB_USERNAME:Approved` appears → PR is **already reviewed**
+3. If `Review Comments:` section contains comments from `$GITHUB_USERNAME` → PR is **already reviewed**
+
+**Environment Variables:**
+- `$GITHUB_USERNAME`: Your GitHub username (Example: `imshubhamsingh`)
 
 **Classification:**
 - **Already reviewed** → Mark as `[x]` and status "reviewed, waiting on @author"
@@ -63,10 +71,10 @@ Each file contains semi-structured activity logs and task information from sourc
 ```
 🔀 [GITHUB] feat: new feature support
       Reviews:
-      - {YOUR_GITHUB_USERNAME}:Commented
+      - $GITHUB_USERNAME:Commented
 
       Review Comments:
-      - {YOUR_GITHUB_USERNAME} (file.ts): comment text...
+      - $GITHUB_USERNAME (file.ts): comment text...
 ```
 
 This PR should appear as:
@@ -303,8 +311,8 @@ Store these as `START_INPUT`, `START_OUTPUT`, `START_CACHE_CREATE`, `START_CACHE
 
 Before anything else, check if `today.md` already exists:
 
-1. If `~/Projects/obsidian/work/00-work-os/today.md` exists:
-   - Move its contents to: `~/Projects/obsidian/work/00-work-os/archive/{YESTERDAY-DATE}.md`
+1. If `$WORK_OS_BASE_DIR/today.md` exists:
+   - Move its contents to: `$WORK_OS_BASE_DIR/archive/{YESTERDAY-DATE}.md`
    - Use yesterday's date in `YYYY-MM-DD` format
 2. Create the archive directory if it doesn't exist
 
@@ -313,7 +321,7 @@ Before anything else, check if `today.md` already exists:
 Read all archived briefs from the last 7 days:
 
 ```
-~/Projects/obsidian/work/00-work-os/archive/{DATE}.md
+$WORK_OS_BASE_DIR/archive/{DATE}.md
 ```
 
 For each archived brief, identify:
@@ -326,7 +334,7 @@ For each archived brief, identify:
 Read ONLY raw Markdown files matching today's date pattern:
 
 ```
-~/Projects/obsidian/work/00-work-os/raw/{TODAY-DATE}-*.md
+$WORK_OS_BASE_DIR/raw/{TODAY-DATE}-*.md
 ```
 
 For example, if today is 2026-01-23, read only files like:
@@ -394,7 +402,7 @@ After generating the complete brief:
 Write the final brief to:
 
 ```
-~/Projects/obsidian/work/00-work-os/today.md
+$WORK_OS_BASE_DIR/today.md
 ```
 
 IMPORTANT: Ensure horizontal separators (---) are placed between all major sections as shown in the output structure.
@@ -461,7 +469,7 @@ If no actionable tasks are detected, generate a minimal brief containing:
 
 ## Preconditions
 
-- Raw Markdown files must already exist in: `~/Projects/obsidian/work/00-work-os/raw/`
+- Raw Markdown files must already exist in: `$WORK_OS_BASE_DIR/raw/`
 - Input may contain duplicated threads, quoted replies, timestamps, and noise
 - You must normalize and summarize this data
 
@@ -472,7 +480,7 @@ If no actionable tasks are detected, generate a minimal brief containing:
 Read follow-ups from:
 
 ```
-~/Projects/obsidian/work/00-work-os/follow-ups.md
+$WORK_OS_BASE_DIR/follow-ups.md
 ```
 
 Rules:

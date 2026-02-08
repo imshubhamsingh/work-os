@@ -33,40 +33,82 @@ Maintains stateful follow-ups across daily and weekly contexts.
 
 ---
 
+## Environment Variables
+
+These templates use environment variables for portability. Configure based on your setup:
+
+### Required Variables
+
+- **`$WORK_OS_BASE_DIR`**: Base directory for work-os data
+  - Example: `~/Projects/obsidian/work/00-work-os`
+  - Used in all templates
+
+### Optional Variables
+
+- **`$GITHUB_USERNAME`**: Your GitHub username
+  - Example: `imshubhamsingh`
+  - Used in `work-os-today.md` for PR review detection
+
+- **`$ACK_REACTION`**: Acknowledgment reaction emoji for Must-Do items
+  - Example: `:ack:`
+  - Used in `work-os-today.md`
+
+- **`$ENABLE_COST_TRACKING`**: Enable token usage/cost tracking
+  - Values: `true` | `false` (default: `false`)
+  - Used in `work-os-today.md`, `work-os-weekly.md`
+
+- **`$COST_TRACKING_CMD`**: Command to track token usage
+  - Example: `npx ccusage@latest daily --json`
+  - Used when `$ENABLE_COST_TRACKING` is `true`
+
+### Example Configuration
+
+**Full setup (like Shubham's):**
+```bash
+export WORK_OS_BASE_DIR="$HOME/Projects/obsidian/work/00-work-os"
+export GITHUB_USERNAME="imshubhamsingh"
+export ACK_REACTION=":ack:"
+export ENABLE_COST_TRACKING="true"
+export COST_TRACKING_CMD="npx ccusage@latest daily --json"
+```
+
+**Minimal setup:**
+```bash
+export WORK_OS_BASE_DIR="$HOME/work-os"
+```
+
+---
+
 ## Customization
 
 To use these templates for your own setup:
 
-### 1. Replace Placeholders
+### 1. Configure Environment Variables
 
-**GitHub Username:**
-- Find: `{YOUR_GITHUB_USERNAME}`
-- Replace with: your actual GitHub username (e.g., `octocat`)
+Set the environment variables above in your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) or `.env` file.
 
-**File Paths:**
-- Update paths to match your Obsidian vault structure
-- Default: `~/Projects/obsidian/work/00-work-os/`
-- Customize to your vault location
+### 2. Adjust Integration Sources
 
-**Integration Sources:**
+**Default integrations:**
 - Templates assume Slack, GitHub, and Jira
 - Remove or add integrations based on your work-os setup
+- Update plugin references as needed
 
-### 2. Adjust Classification Rules
+### 3. Adjust Classification Rules
 
 Edit the classification rules in `work-os-today.md` to match your workflow:
 - Must Do criteria
 - Review thresholds
 - Context grouping preferences
 
-### 3. Customize Output Structure
+### 4. Customize Output Structure
 
 Modify section headers and content to match your needs:
 - Add/remove sections
 - Change emoji indicators
 - Adjust formatting preferences
 
-### 4. Configure AI Stats (Optional)
+### 5. Configure AI Stats (Optional)
 
 If you're not using AI code tracking:
 - Remove the `## 🤖 AI Usage Statistics` section

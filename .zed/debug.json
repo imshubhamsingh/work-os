@@ -1,0 +1,12 @@
+[
+  {
+    "request": "launch",
+    "label": "Debug work-os github",
+    "adapter": "CodeLLDB",
+    "program": "./target/debug/work-os",
+    "args": ["sync", "--plugins", "github"],
+    "env": {
+      "RUST_BACKTRACE": "1",
+    },
+  },
+]

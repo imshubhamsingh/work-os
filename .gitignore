@@ -1,7 +1,4 @@
 /target
 
-.claude/local/*
-!.claude/local/.gitkeep
-
 # Local settings
 settings.local.json

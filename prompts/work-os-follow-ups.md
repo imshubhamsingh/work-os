@@ -28,8 +28,12 @@ This command is the **single source of truth** for creating, updating, and resol
 All follow-ups live in a single file:
 
 ```
-~/Projects/obsidian/work/00-work-os/follow-ups.md
+$WORK_OS_BASE_DIR/follow-ups.md
 ```
+
+**Environment Variables:**
+- `$WORK_OS_BASE_DIR`: Base directory for work-os data
+  - Example: `~/Projects/obsidian/work/00-work-os`
 
 This file is authoritative.
 
@@ -205,7 +209,7 @@ When updating `follow-ups.md`:
 Write the updated follow-ups to:
 
 ```
-~/Projects/obsidian/work/00-work-os/follow-ups.md
+$WORK_OS_BASE_DIR/follow-ups.md
 ```
 
 No other output is required.

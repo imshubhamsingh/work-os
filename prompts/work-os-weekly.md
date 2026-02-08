@@ -11,8 +11,6 @@ This is a **retrospective and synthesis task** — not a daily task list, not a 
 
 Optimize for clarity, traceability, and decision-making signal.
 
-Work OS directory: {{WORK_OS_DIR}}
-
 ---
 
 ## 🧭 Lead Summary (Manager-Readable) — MANDATORY
@@ -55,11 +53,14 @@ For any **non-subjective claim**, include an Obsidian source link (see "Obsidian
 Read archived daily briefs from:
 
 ```
-{{WORK_OS_DIR}}/archive/{DATE}.md
+$WORK_OS_BASE_DIR/archive/{DATE}.md
 ```
 
+**Environment Variables:**
+- `$WORK_OS_BASE_DIR`: Base directory for work-os data
+  - Example: `~/Projects/obsidian/work/00-work-os`
+
 - Look back **7 calendar days**, counting backwards from today
-- Files are named `YYYY-MM-DD.md`
 - Some days may be missing — skip silently
 
 ### Fallback Source — Today
@@ -67,7 +68,7 @@ Read archived daily briefs from:
 If today's date is **not included** in the archive window, additionally read:
 
 ```
-{{WORK_OS_DIR}}/today.md
+$WORK_OS_BASE_DIR/today.md
 ```
 
 Do NOT read:
@@ -107,7 +108,39 @@ Rules:
 - Do NOT invent block IDs or headings
 - Line numbers are contextual only (Obsidian does not support line anchors)
 - If a claim cannot be traced, omit it
-- **PRs and Slack threads must be hyperlinks** (e.g., `[PR #123](https://github.com/...)`, `[Slack thread](https://slack.com/...)`)
+- **PRs and Slack threads must be hyperlinks** (e.g., `[PR #123](https://github.com/...)`, `[Slack thread](https://...)`)
+
+---
+
+## AI Stats Aggregation (NEW)
+
+When reading daily briefs, specifically look for the `## 🤖 AI Usage Statistics` section.
+
+1. **Extract Data:** Parse the `Total LOC`, `AI LOC`, and `Human LOC` numbers from each day.
+2. **Aggregate:**
+   - Sum all `Total LOC`
+   - Sum all `AI LOC`
+   - Sum all `Human LOC`
+3. **Calculate Weekly Stats:**
+   - `Weekly AI %` = `(Total AI / Total Weekly LOC) * 100`
+   - `Weekly Human %` = `(Total Human / Total Weekly LOC) * 100`
+4. **Format:**
+   - Generate a new 10-block progress bar based on the *weekly* percentage.
+   - Present the summary data (Total, AI, Human stats) in the `## 🤖 Week's AI Usage Statistics` section.
+   - **Do NOT** include a per-PR breakdown table.
+   - If no AI stats are found in any daily brief, omit this section entirely.
+
+## AI Trend Generation (Verified Daily Data)
+
+1. **Use Aggregated Daily Data:** You have already read the `Total LOC`, `AI LOC`, and `Human LOC` for each available day in the "AI Stats Aggregation" step.
+2. **Sort:** Ensure data is sorted by date (Monday → Sunday).
+3. **Generate Comparison Table:**
+   - Create a table with columns: Date | 🤖 AI | 👤 Human | Winner | AI %
+   - For each day, compare AI vs Human LOC
+   - **Bold** the larger value in each row
+   - Winner column: "AI" if AI > Human, "Human" if Human > AI, "~Tie" if within 5%
+   - Calculate AI % = (AI LOC / Total LOC) * 100
+   - Add a trend summary below the table describing the weekly pattern
 
 ---
 
@@ -116,7 +149,7 @@ Rules:
 Write the final weekly summary to:
 
 ```
-{{WORK_OS_DIR}}/archive/weekly/{START_DATE}-{END_DATE}.md
+$WORK_OS_BASE_DIR/archive/weekly/{START_DATE}_{END_DATE}.md
 ```
 
 Filename rules:
@@ -266,6 +299,28 @@ Filename rules:
 
 ---
 
+## 🤖 Week's AI Usage Statistics
+
+**Total LOC:** [Sum Total] | **AI:** [Sum AI] ([New %]%) | **Human:** [Sum Human] ([New %]%)
+
+`[Progress Bar]` [New %]% AI Generated
+
+### 📈 Daily AI vs Human Comparison
+
+| Date | 🤖 AI | 👤 Human | Winner | AI % |
+|------|-------|----------|---------|------|
+| MM-DD | X,XXX | X,XXX | AI/Human/~Tie | XX% |
+
+📊 **Trend:** [Brief narrative of AI vs Human pattern across the week - when did AI spike? When did it drop? Any notable shifts?]
+
+> **How to populate:**
+> - Bold the larger number in each row
+> - Winner column: "AI" if AI > Human, "Human" if Human > AI, "~Tie" if within 5%
+> - AI % = (AI / Total) * 100
+> - Trend: Narrative summary of the weekly pattern (e.g., "AI dominated early week, Human regained control Thu-Fri")
+
+---
+
 ## ⚠️ Risks & Blockers
 
 **Ongoing:**
@@ -317,9 +372,16 @@ Filename rules:
 
 ## 💰 Generation Cost
 
-**Input tokens:** [X]
-**Output tokens:** [Y]
-**Approximate cost:** $[Z.ZZ]
+**Method:** If `$ENABLE_COST_TRACKING` is enabled, run `$COST_TRACKING_CMD` before starting and after completing all work.
+
+**Example:** `npx ccusage@latest daily --json`
+
+**Total Cost:** $X.XX
+
+**Breakdown:**
+- **Files Read:** N daily briefs from archive
+- **Files Written:** 1 weekly summary
+- **Cache Usage:** Heavy (system prompts reused)
 ```
 
 ---
