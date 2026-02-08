@@ -121,7 +121,7 @@ impl Plugin for JiraPlugin {
     fn configure_from_values(
         &mut self,
         values: &HashMap<String, Value>,
-        _base_path: &PathBuf,
+        _output_path: &PathBuf,
     ) -> Result<()> {
         let domain = values
             .get("domain")

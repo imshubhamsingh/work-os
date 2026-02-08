@@ -4,14 +4,10 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 use toml::Value;
 
-use crate::{
-    core::{
-        plugin::{ConfigField, ConfigFieldType, Plugin, PluginMetadata},
-        task::Task,
-    },
-    error::Result,
-    plugins::granola::{client::GranolaClient, config::GranolaConfig},
-};
+use crate::core::plugin::{ConfigField, Plugin, PluginMetadata};
+use crate::core::task::Task;
+use crate::error::Result;
+use crate::plugins::granola::{client::GranolaClient, config::GranolaConfig};
 
 mod cache_reader;
 mod client;
@@ -63,33 +59,17 @@ impl Plugin for GranolaPlugin {
 
     fn config_schema(&self) -> Vec<ConfigField> {
         vec![
-                ConfigField {
-                    name: "mom_folder_name",
-                    label: "MOM Folder Name",
-                    help: "Relative path for MOM folder (created inside work-os output directory).\n\
-                           Default: mom\n\
-                           Note: Cache file location is fixed at ~/Library/Application Support/Granola/cache-v3.json",
-                    field_type: ConfigFieldType::String,
-                    required: false,
-                    default: Some("mom"),
-                },
-            ]
+            // No configuration needed - Granola reads from fixed cache location
+        ]
     }
 
     fn configure_from_values(
         &mut self,
-        values: &HashMap<String, Value>,
-        base_path: &PathBuf,
+        _values: &HashMap<String, Value>,
+        output_path: &PathBuf,
     ) -> Result<()> {
-        let mom_folder_name = values
-            .get("mom_folder_name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("mom")
-            .to_string();
-
         let granola_config = GranolaConfig {
-            mom_folder_name,
-            output_base: base_path.clone(),
+            output_path: output_path.clone(),
         };
 
         self.configure(granola_config)

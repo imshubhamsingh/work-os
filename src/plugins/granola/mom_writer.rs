@@ -6,15 +6,13 @@ use std::path::PathBuf;
 const DEFAULT_SUMMARY: &str = "No summary provided by Granola";
 
 pub struct MomWriter {
-    output_base: PathBuf,
-    mom_folder_name: String,
+    output_path: PathBuf,
 }
 
 impl MomWriter {
-    pub fn new(output_base: PathBuf, mom_folder_name: String) -> Self {
+    pub fn new(output_path: PathBuf) -> Self {
         Self {
-            output_base,
-            mom_folder_name,
+            output_path,
         }
     }
 
@@ -24,11 +22,12 @@ impl MomWriter {
         transcript: Option<&[TranscriptSegment]>,
         panel: Option<&DocumentPanel>,
     ) -> Result<(PathBuf, String)> {
+        // Create path: raw/YYYY-MM-DD/moms/meeting-name/
         let date_folder = doc.created_at.format("%Y-%m-%d").to_string();
         let mom_date_folder = self
-            .output_base
-            .join(&self.mom_folder_name)
-            .join(&date_folder);
+            .output_path
+            .join(&date_folder)
+            .join("moms");
 
         let meeting_folder_name = self.sanitize_title(doc.title.as_deref().unwrap_or("untitled"));
         let meeting_folder = mom_date_folder.join(&meeting_folder_name);
@@ -70,7 +69,8 @@ impl MomWriter {
             .and_then(|p| p.original_content.clone())
             .unwrap_or_else(|| DEFAULT_SUMMARY.to_string());
 
-        let content = self.html_to_markdown(&granola_summary);
+        let summary_markdown = self.html_to_markdown(&granola_summary);
+        content.push_str(&summary_markdown);
 
         content
     }

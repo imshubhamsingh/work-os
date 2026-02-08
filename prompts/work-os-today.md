@@ -7,17 +7,23 @@ model: opus
 
 You are generating a concise daily work brief in Markdown from work-os raw Markdown data.
 
-You will read raw Markdown files matching **today's date only** from:
+You will read raw Markdown files from today's date folder:
 
 ```
-$WORK_OS_BASE_DIR/raw/{TODAY-DATE}-*.md
+$WORK_OS_BASE_DIR/raw/{TODAY-DATE}/sync-*.md
 ```
 
 **Environment Variables:**
 - `$WORK_OS_BASE_DIR`: Base directory for work-os data
   - Example: `~/Projects/obsidian/work/00-work-os`
 
-There may be multiple files for today (different sync timestamps) — read all of them. Do NOT read files from previous days.
+**New File Structure:**
+- Date folders: `raw/YYYY-MM-DD/`
+- Sync files: `sync-HHMM.md` (24-hour format)
+- Example: `raw/2026-02-08/sync-0943.md`, `raw/2026-02-08/sync-1430.md`
+- Granola MOMs: `raw/YYYY-MM-DD/moms/meeting-name/` (processed, not read directly)
+
+There may be multiple sync files for today (different timestamps) — read all `sync-*.md` files in today's folder. Do NOT read files from previous date folders.
 
 Each file contains semi-structured activity logs and task information from sources such as Slack, Jira and GitHub.
 
@@ -331,17 +337,25 @@ For each archived brief, identify:
 
 ### Step 3: Read Today's Raw Data
 
-Read ONLY raw Markdown files matching today's date pattern:
+Read ONLY sync files from today's date folder:
 
 ```
-$WORK_OS_BASE_DIR/raw/{TODAY-DATE}-*.md
+$WORK_OS_BASE_DIR/raw/{TODAY-DATE}/sync-*.md
 ```
 
-For example, if today is 2026-01-23, read only files like:
-- `2026-01-23-0943.md`
-- `2026-01-23-1430.md`
+**New Structure:**
+- Date folder: `raw/YYYY-MM-DD/`
+- Sync files: `sync-HHMM.md` (24-hour time format)
 
-**IMPORTANT:** Do NOT read files from previous days. There may be multiple files for today (different timestamps), read all of them. Ignore any files that don't match today's date prefix.
+For example, if today is 2026-01-23, read files like:
+- `raw/2026-01-23/sync-0943.md`
+- `raw/2026-01-23/sync-1430.md`
+- `raw/2026-01-23/sync-1845.md`
+
+**IMPORTANT:**
+- Read ALL `sync-*.md` files in today's date folder
+- Do NOT read files from previous date folders (e.g., `raw/2026-01-22/`)
+- Granola MOMs are now in `raw/YYYY-MM-DD/moms/` but are NOT read directly (already processed in sync files)
 
 ### Step 4: Generate Brief with Carryovers
 

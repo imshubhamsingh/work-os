@@ -21,7 +21,7 @@ impl GranolaClient {
                    ));
         }
 
-        let mom_writer = MomWriter::new(config.output_base.clone(), config.mom_folder_name.clone());
+        let mom_writer = MomWriter::new(config.output_path.clone());
 
         Ok(Self {
             cache_reader,
@@ -41,7 +41,7 @@ impl GranolaClient {
         let filtered_docs: Vec<_> = documents
             .into_iter()
             .filter(|doc| {
-                date_range.contains(doc.created_at) || date_range.contains(doc.updated_at)
+                date_range.contains(doc.created_at)
             })
             .collect();
 
@@ -62,7 +62,7 @@ impl GranolaClient {
                     println!("  ✓ Wrote MOM folder: {}", folder_path.display());
                     let task = Task::new(
                         "granola",
-                        TaskType::Other("meeting".to_string()),
+                        TaskType::MOM,
                         doc_id,
                         doc_title.to_string(),
                         format!("file://{}", folder_path.display()),

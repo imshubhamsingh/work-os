@@ -1,6 +1,6 @@
 # 🎯 Work-OS
 
-> Because juggling Slack, GitHub, and Jira in 47 tabs isn't a productivity strategy.
+> Because juggling Slack, GitHub, Jira, and meeting notes in 47 tabs isn't a productivity strategy.
 
 A Rust CLI that syncs your work from everywhere, then uses AI (Claude Code) to turn the chaos into clean markdown briefs. Your personal productivity system, automated. (I use Obsidian to view them, but it's just markdown files!)
 
@@ -10,8 +10,9 @@ Ever had that moment where you're like "Wait, did I miss reviewing that PR?" or 
 
 Work-OS is a Rust CLI that pulls together your:
 - 💬 Slack messages, mentions, and DMs
-- 🔀 GitHub PRs, issues, and reviews  
+- 🔀 GitHub PRs, issues, and reviews
 - 🎫 Jira tickets and sprints
+- 🍥 Granola meeting notes (transcripts & summaries) - highly experimental and macos only
 
 ...and gives you a clean, unified view. One command, all your tasks. Simple.
 
@@ -53,6 +54,9 @@ work-os config set jira domain company.atlassian.net
 work-os config set jira email your-email@company.com
 work-os config set jira token YOUR_JIRA_API_TOKEN
 
+# Granola (highly experimental, macos only) - no configuration needed!
+# Just install Granola and it will automatically read from your local cache
+
 # Get your stuff
 work-os sync
 ```
@@ -74,6 +78,9 @@ work-os sync --plugins slack
 # Check your Jira tickets and sprint status
 work-os sync --plugins jira
 
+# Sync meeting notes from Granola
+work-os sync --plugins granola
+
 # GitHub + Jira only (the developer combo)
 work-os sync --plugins github,jira
 
@@ -92,11 +99,11 @@ work-os stats --type ai-code --mode weekly
 Here's where it gets interesting. After `work-os sync` generates the raw markdown, I use **Claude Code with custom templates** to process it into actionable daily briefs.
 
 **My complete stack:**
-1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, and Jira
+1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, Jira, and Granola
 2. **Claude Code** (AI) → Processes raw data with custom templates
-3. **Obsidian** (Markdown) → Stores and organizes my daily briefs
+3. **Obsidian** (Markdown) → Stores and organizes my daily briefs, weekly reports and follow-ups
 
-I've set up custom commands (in `.claude/templates/`) that:
+I've set up custom commands (in `prompts`) that:
 - Take the raw sync data from all platforms
 - Extract actionable items and categorize them (Must Do, Reviews, Follow-ups)
 - Detect release-critical PRs and blockers
@@ -149,7 +156,7 @@ This helps you understand your AI collaboration patterns and track productivity 
 
 Built with Rust because... well, why not? 🦀
 
-- **Plugins**: Each platform (GitHub, Slack, Jira) is a plugin
+- **Plugins**: Each platform (GitHub, Slack, Jira, Granola) is a plugin
 - **Tasks**: Everything becomes a unified `Task` model
 - **Outputs**: Terminal, JSON, or Markdown - pick your flavor
 - **Smart Syncing**: Only fetches what you need based on date ranges
@@ -160,8 +167,8 @@ The architecture is clean and modular - adding new platforms is straightforward.
 
 Work-OS doesn't just dump data - it makes it look good:
 - Color-coded priorities
-- Source icons (GitHub/Slack/Jira)
-- Author info and timestamps  
+- Source icons (GitHub/Slack/Jira/Granola)
+- Author info and timestamps
 - Clickable URLs
 - Clean formatting
 

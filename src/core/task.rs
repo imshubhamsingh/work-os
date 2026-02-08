@@ -62,6 +62,7 @@ pub enum TaskType {
     Message,
     Ticket,
     Statistics,
+    MOM,
     Other(String),
 }
 
@@ -150,6 +151,7 @@ impl TaskType {
             TaskType::Message => "message",
             TaskType::Ticket => "ticket",
             TaskType::Statistics => "statistics",
+            TaskType::MOM => "mom",
             TaskType::Other(name) => name,
         }
     }

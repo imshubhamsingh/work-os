@@ -14,12 +14,12 @@ use crate::plugins::slack::SlackPlugin;
 
 pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     let mut registry = PluginRegistry::new();
-    let base_path = &config.output.base_path;
+    let output_path = config.output.base_path.join(&config.output.markdown_path);
 
     let mut github_plugin = GithubPlugin::new();
     if let Some(ref github_plugin_config) = config.get_plugin("github") {
         if github_plugin_config.enabled {
-            if let Err(e) = github_plugin.configure_from_values(&github_plugin_config.values, base_path) {
+            if let Err(e) = github_plugin.configure_from_values(&github_plugin_config.values, &output_path) {
                 eprintln!("Warning: Failed to configure GitHub: {}", e);
             }
         }
@@ -29,7 +29,7 @@ pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     let mut slack_plugin = SlackPlugin::new();
     if let Some(slack_plugin_config) = config.get_plugin("slack") {
         if slack_plugin_config.enabled {
-            if let Err(e) = slack_plugin.configure_from_values(&slack_plugin_config.values, base_path) {
+            if let Err(e) = slack_plugin.configure_from_values(&slack_plugin_config.values, &output_path) {
                 eprintln!("Warning: Failed to configure Slack: {}", e);
             }
         }
@@ -39,7 +39,7 @@ pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     let mut jira_plugin = JiraPlugin::new();
     if let Some(jira_config) = config.get_plugin("jira") {
         if jira_config.enabled {
-            if let Err(e) = jira_plugin.configure_from_values(&jira_config.values, base_path) {
+            if let Err(e) = jira_plugin.configure_from_values(&jira_config.values, &output_path) {
                 eprintln!("Warning: Failed to configure Jira: {}", e);
             }
         }
@@ -49,7 +49,7 @@ pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     let mut granola_plugin = GranolaPlugin::new();
     if let Some(granola_config) = config.get_plugin("granola") {
         if granola_config.enabled {
-            if let Err(e) = granola_plugin.configure_from_values(&granola_config.values, base_path) {
+            if let Err(e) = granola_plugin.configure_from_values(&granola_config.values, &output_path) {
                 eprintln!("Warning: Failed to configure Granola: {}", e);
             }
         }

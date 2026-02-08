@@ -15,12 +15,17 @@ impl MarkdownGenerator {
     }
 
     pub fn generate(&self, tasks: &[Task]) -> Result<PathBuf> {
-        std::fs::create_dir_all(&self.output_path)?;
+        let now = Local::now();
 
-        let file_name = Local::now().format("%Y-%m-%d-%H%M").to_string();
-        let file_path = self.output_path.join(format!("{}.md", &file_name));
+        let date_folder = now.format("%Y-%m-%d").to_string();
+        let date_path = self.output_path.join(&date_folder);
+        std::fs::create_dir_all(&date_path)?;
+
+        let time_stamp = now.format("%H%M").to_string();
+        let file_name = format!("sync-{}.md", time_stamp);
+        let file_path = date_path.join(&file_name);
+
         let mut content = self.build_markdown(tasks);
-
         content = self.add_task_statistics(&content, tasks);
 
         std::fs::write(&file_path, content)?;
@@ -133,6 +138,7 @@ pub fn get_task_icon(task: &Task) -> String {
         TaskType::Message => "💬",
         TaskType::Ticket => "🎫",
         TaskType::Statistics => "📊",
+        TaskType::MOM => "🎤",
         TaskType::Other(_) => "📌",
     };
     icon.to_string()
