@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct JiraConfig {
     pub domain: String,
     pub email: String,
-    pub api_token: String,
+    pub token: String,
     #[serde(default)]
     pub filters: Vec<JqlFilter>,
 }

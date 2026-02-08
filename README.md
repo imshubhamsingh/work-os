@@ -27,6 +27,7 @@ This started as a learning project and turned into something I actually use ever
 
 - **Stop Context Switching**: All your work items in one place
 - **Never Miss Anything**: PRs waiting for review? Slack mentions? We got you
+- **Track AI Collaboration**: See exactly how much AI is helping with your code
 - **Beautiful Output**: Colored terminal UI, JSON for scripts, or Markdown reports
 - **Flexible**: Daily briefs, weekly summaries, or custom date ranges
 - **Extensible**: Plugin-based architecture (add your own integrations!)
@@ -40,9 +41,17 @@ cargo build --release
 # Set it up
 work-os config init
 
-# Add your tokens
-work-os config set github token YOUR_TOKEN
-work-os config set slack token YOUR_TOKEN
+# Configure GitHub
+work-os config set github token YOUR_GITHUB_TOKEN
+work-os config set github username YOUR_USERNAME
+
+# Configure Slack
+work-os config set slack token YOUR_SLACK_TOKEN
+
+# Configure Jira
+work-os config set jira domain company.atlassian.net
+work-os config set jira email your-email@company.com
+work-os config set jira token YOUR_JIRA_API_TOKEN
 
 # Get your stuff
 work-os sync
@@ -62,8 +71,20 @@ work-os sync --mode weekly --markdown
 # Just check Slack (because we all know why)
 work-os sync --plugins slack
 
+# Check your Jira tickets and sprint status
+work-os sync --plugins jira
+
+# GitHub + Jira only (the developer combo)
+work-os sync --plugins github,jira
+
 # Export everything as JSON for your scripts
 work-os sync --json > my-tasks.json
+
+# Track your AI-assisted coding stats
+work-os stats --type ai-code
+
+# Get weekly AI code usage statistics
+work-os stats --type ai-code --mode weekly
 ```
 
 ## 🤖 My Workflow: AI-Assisted Daily Briefs
@@ -71,7 +92,7 @@ work-os sync --json > my-tasks.json
 Here's where it gets interesting. After `work-os sync` generates the raw markdown, I use **Claude Code with custom templates** to process it into actionable daily briefs.
 
 **My complete stack:**
-1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, Jira
+1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, and Jira
 2. **Claude Code** (AI) → Processes raw data with custom templates
 3. **Obsidian** (Markdown) → Stores and organizes my daily briefs
 
@@ -96,6 +117,33 @@ work-os sync --markdown
 This combo lets me start each morning with a crystal-clear view of what matters, all stored in my Obsidian vault for easy reference and searching. You can use any markdown editor you prefer, but I've found Obsidian perfect for this workflow!
 
 The templates are in the repo if you want to adapt them for your own workflow.
+
+## 📊 AI Code Usage Tracking
+
+Ever wonder how much AI is actually helping you code? Work-OS tracks AI-assisted development through GitHub commit analysis:
+
+**What it detects:**
+- 🤖 **Explicit AI Attribution**: Commits with `Co-Authored-By: Claude` or similar
+- 💥 **Large Code Bursts**: Commits with >1000 lines (often AI-generated)
+- 📝 **Commit Patterns**: Long descriptive vs. short simple messages
+- 🔀 **Smart Filtering**: Excludes merge commits from AI scoring
+
+**Commit-level breakdown:**
+```bash
+work-os stats --type ai-code
+
+# Example output:
+PR: feat/new-dashboard (#234)
+  AI Score: 75% (3/4 commits)
+
+  Commit Details:
+    - abc1234: +1250 -45 (80%) - AI: Large burst
+    - def5678: +120 -30 (100%) - AI: Claude (explicit)
+    - ghi9012: +45 -12 (0%) - Human: Simple commit
+    - merge: (skipped) - Merge commit
+```
+
+This helps you understand your AI collaboration patterns and track productivity trends over time.
 
 ## 🏗️ How's It Built?
 

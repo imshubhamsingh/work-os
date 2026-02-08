@@ -1,7 +1,12 @@
-use crate::core::task::{Person, PersonRole, Priority, Task, TaskType};
+use crate::core::task::{
+    GitHubMetadata, Person, PersonRole, Priority, Task, TaskMetadata, TaskType,
+};
 use crate::error::{Result, WorkOsError};
 use crate::models::date_range::DateRange;
+use crate::plugins::github::ai_stats::{AIUsageStats, PrAIStats};
+use crate::plugins::github::commit_analyzer::CommitMessageAnalyzer;
 use crate::plugins::github::model::*;
+use chrono::TimeDelta;
 use octocrab::Octocrab;
 use std::fmt::Write;
 
@@ -14,6 +19,10 @@ pub struct GithubClient {
 }
 
 impl GithubClient {
+    // ============================
+    // Public API
+    // ============================
+
     pub fn new(config: &GitHubConfig) -> Result<Self> {
         let octocrab = Octocrab::builder()
             .personal_token(config.token.clone())
@@ -40,10 +49,6 @@ impl GithubClient {
         Ok(user.login == self.username)
     }
 
-    // ============================
-    // Tasks
-    // ============================
-
     pub async fn get_all_tasks(&self) -> Result<Vec<Task>> {
         let mut all_tasks = Vec::new();
 
@@ -52,10 +57,19 @@ impl GithubClient {
 
         let mut all_tasks = Self::deduplicate_tasks(all_tasks);
 
+        match self.get_ai_stats().await {
+            Ok(stats_task) => all_tasks.push(stats_task),
+            Err(e) => println!("Warning: Failed to generate AI stats: {}", e),
+        }
+
         all_tasks.sort_by(|a, b| a.created_at.cmp(&b.created_at));
 
         Ok(all_tasks)
     }
+
+    // ============================
+    // PR Fetching
+    // ============================
 
     async fn get_involved_prs(&self) -> Result<Vec<Task>> {
         let query = self.build_search_query(SearchType::Involved);
@@ -94,7 +108,15 @@ impl GithubClient {
                 username: pr.user.login.clone(),
                 role: PersonRole::Author,
             })
-            .with_priority(Priority::Unknown);
+            .with_priority(Priority::Unknown)
+            .with_metadata(TaskMetadata::GitHub(GitHubMetadata {
+                repo: format!("{}/{}", owner, repo),
+                number: pr.number,
+                state: format!("{:?}", pr.state),
+                comments: pr.comments,
+                additions: None,
+                deletions: None,
+            }));
 
             if !description.is_empty() {
                 task = task.with_description(description);
@@ -107,171 +129,170 @@ impl GithubClient {
     }
 
     // ============================
-    // Shared helpers
+    // AI Stats
     // ============================
-    fn build_search_query(&self, search_type: SearchType) -> String {
-        let repo_filter = self.build_repo_filter();
 
-        if repo_filter.is_empty() {
-            format!("is:pr is:open {}:{}", search_type, self.username)
-        } else {
-            format!(
-                "is:pr is:open {}:{} {}",
-                search_type, self.username, repo_filter
-            )
+    pub async fn get_ai_stats(&self) -> Result<Task> {
+        let mut date_range = DateRange::get().clone();
+
+        let delta = date_range.end.date_naive() - date_range.start.date_naive();
+        if delta.num_days() <= 0 {
+            date_range.start = date_range.start - TimeDelta::days(1);
+            date_range.end = date_range.end + TimeDelta::days(1);
         }
-    }
 
-    fn build_repo_filter(&self) -> String {
-        if !self.include_repos.is_empty() {
-            return self
-                .include_repos
+        let start_date = date_range.start.date_naive();
+        let end_date = date_range.end.date_naive();
+        let mut stats = AIUsageStats::new(start_date, end_date);
+
+        let analyzer = CommitMessageAnalyzer::new();
+        let all_prs_task = self.get_all_pr_tasks_lite().await?;
+
+        for task in all_prs_task {
+            let TaskMetadata::GitHub(ref metadata) = task.metadata else {
+                continue;
+            };
+
+            // pr created after date range
+            if task.created_at > date_range.end {
+                continue;
+            }
+
+            // pr created and last updated before date range
+            if task.updated_at < date_range.start && task.created_at < date_range.start {
+                continue;
+            }
+
+            let Ok(commits) = self.get_pr_commits(&metadata.repo, metadata.number).await else {
+                continue;
+            };
+
+            let commits_in_range: Vec<_> = commits
                 .iter()
-                .map(|repo| format!("repo:{}", repo))
-                .collect::<Vec<_>>()
-                .join(" ");
-        }
+                .filter(|c| c.date >= date_range.start && c.date <= date_range.end)
+                .collect();
 
-        if !self.include_orgs.is_empty() {
-            return self
-                .include_orgs
-                .iter()
-                .map(|org| format!("org:{}", org))
-                .collect::<Vec<_>>()
-                .join(" ");
-        }
-
-        String::new()
-    }
-
-    fn parse_repo_from_url(url: &str) -> Option<(String, String)> {
-        // https://github.com/owner/repo/pull/123
-        let parts: Vec<&str> = url.split('/').collect();
-        if parts.len() >= 5 {
-            Some((parts[3].to_string(), parts[4].to_string()))
-        } else {
-            None
-        }
-    }
-
-    fn determine_review_state(reviews: &[PrReview]) -> Option<String> {
-        /*
-         * Priority: ChangesRequested > Approved > Commented
-         */
-        let mut has_approved = false;
-        let mut has_commented = false;
-
-        for review in reviews {
-            match review.state {
-                ReviewState::ChangesRequested => return Some("changes_requested".to_string()),
-                ReviewState::Approved => has_approved = true,
-                ReviewState::Commented => has_commented = true,
-                _ => {}
-            }
-        }
-
-        if has_approved {
-            Some("approved".to_string())
-        } else if has_commented {
-            Some("commented".to_string())
-        } else {
-            None
-        }
-    }
-
-    // fn build_review_counts(reviews: &[PrReview]) -> ReviewCounts {
-    //     ReviewCounts {
-    //         approved: reviews
-    //             .iter()
-    //             .filter(|r| r.state == ReviewState::Approved)
-    //             .count() as u32,
-    //         changes_requested: reviews
-    //             .iter()
-    //             .filter(|r| r.state == ReviewState::ChangesRequested)
-    //             .count() as u32,
-    //         commented: reviews
-    //             .iter()
-    //             .filter(|r| r.state == ReviewState::Commented)
-    //             .count() as u32,
-    //     }
-    // }
-
-    fn build_pr_description(details: &PrDetails) -> String {
-        let mut desc = String::new();
-
-        if !details.reviews.is_empty() {
-            let _ = writeln!(desc, "Reviews:");
-
-            for review in &details.reviews {
-                let _ = writeln!(desc, "- {}:{}", review.author, review.state);
-
-                if let Some(body) = review.body.as_ref().filter(|b| !b.is_empty()) {
-                    let truncated = truncate_text(body, 300);
-                    let _ = writeln!(desc, "  {}", truncated);
-                }
+            if commits_in_range.is_empty() {
+                continue;
             }
 
-            let _ = writeln!(desc);
-        }
+            let lines_added: u64 = commits_in_range.iter().map(|c| c.additions).sum();
+            let lines_deleted: u64 = commits_in_range.iter().map(|c| c.deletions).sum();
 
-        if !details.review_comments.is_empty() {
-            let _ = writeln!(desc, "Review Comments:");
-
-            for comment in &details.review_comments {
-                let body = comment.body.trim();
-                if body.is_empty() {
-                    continue;
-                }
-
-                let truncated = truncate_text(body, 300);
-
-                let location = format!(" ({})", comment.path);
-
-                let _ = writeln!(desc, "- {}{}:", comment.author, location);
-                let _ = writeln!(desc, "  {}", truncated);
-            }
-        }
-
-        if !details.comments.is_empty() {
-            let _ = writeln!(desc, "Comments:");
-
-            for comment in &details.comments {
-                let body = comment.body.trim();
-                if body.is_empty() {
-                    continue;
-                }
-
-                let truncated = truncate_text(body, 300);
-                let _ = writeln!(desc, "- {}:", comment.author);
-                let _ = writeln!(desc, "   {}", truncated);
+            if lines_added == 0 {
+                continue;
             }
 
-            let _ = writeln!(desc);
+            let analysis = analyzer.analyze_pr_commits(&commits_in_range);
+
+            let ai_loc = (lines_added as f32 * analysis.aggregate_score).round() as u64;
+            let human_loc = lines_added.saturating_sub(ai_loc);
+
+            stats.add_pr(PrAIStats {
+                pr_number: metadata.number,
+                repo: metadata.repo.clone(),
+                title: task.title.clone(),
+                lines_added,
+                lines_deleted,
+                ai_score: analysis.aggregate_score,
+                ai_loc,
+                human_loc,
+                commit_count: analysis.commit_count,
+                has_explicit_attribution: analysis.has_explicit_attribution,
+                commit_details: analysis.commits.clone(),
+            });
         }
 
-        let review_state = Self::determine_review_state(&details.reviews);
-        // let review_counts = Self::build_review_counts(&details.reviews);
-
-        if let Some(review_state) = review_state {
-            let _ = writeln!(desc, "Review current state: {}", review_state);
-        }
-
-        desc.trim_end().to_string()
+        Ok(stats.to_task())
     }
 
-    fn deduplicate_tasks(tasks: Vec<Task>) -> Vec<Task> {
-        use std::collections::HashSet;
+    async fn get_all_pr_tasks_lite(&self) -> Result<Vec<Task>> {
+        let authored_query = self.build_pr_query(SearchType::Author);
+        let prs = self.get_pr_list(&authored_query).await?;
 
-        let mut seen = HashSet::new();
-        tasks
+        let tasks = prs
             .into_iter()
-            .filter(|task| seen.insert(task.id.clone()))
-            .collect()
+            .filter_map(|pr| {
+                let (owner, repo) = Self::parse_repo_from_url(pr.html_url.as_str())?;
+
+                Some(
+                    Task::new(
+                        "github",
+                        TaskType::PullRequest,
+                        &pr.number.to_string(),
+                        pr.title.clone(),
+                        pr.html_url.to_string(),
+                    )
+                    .with_date(pr.created_at, pr.updated_at)
+                    .with_metadata(TaskMetadata::GitHub(GitHubMetadata {
+                        repo: format!("{}/{}", owner, repo),
+                        number: pr.number,
+                        state: format!("{:?}", pr.state),
+                        comments: pr.comments,
+                        additions: None,
+                        deletions: None,
+                    })),
+                )
+            })
+            .collect();
+
+        Ok(tasks)
     }
 
     // ============================
-    // Github API
+    // GitHub API
     // ============================
+
+    async fn get_pr_commits(
+        &self,
+        repo: &str, // this will always be "owner/repo"
+        pr_number: u64,
+    ) -> Result<Vec<PrCommit>> {
+        use octocrab::Page;
+
+        let route = format!("/repos/{}/pulls/{}/commits", repo, pr_number);
+        println!("API call to Github: {}", route);
+        let commits: Page<octocrab::models::repos::RepoCommit> = self
+            .octocrab
+            .get(&route, None::<&()>)
+            .await
+            .map_err(|e| WorkOsError::GitHub(e.to_string()))?;
+
+        let mut result = Vec::new();
+        for commit in commits.items {
+            let Some(date) = commit.commit.author.and_then(|a| a.date) else {
+                continue;
+            };
+
+            let commit_route = format!("/repos/{}/commits/{}", repo, commit.sha);
+            let full_commit: octocrab::models::repos::RepoCommit = self
+                .octocrab
+                .get(&commit_route, None::<&()>)
+                .await
+                .map_err(|e| WorkOsError::GitHub(e.to_string()))?;
+
+            let additions = full_commit
+                .stats
+                .as_ref()
+                .and_then(|s| s.additions)
+                .unwrap_or(0);
+            let deletions = full_commit
+                .stats
+                .as_ref()
+                .and_then(|s| s.deletions)
+                .unwrap_or(0);
+
+            result.push(PrCommit {
+                sha: commit.sha,
+                message: commit.commit.message,
+                date,
+                additions,
+                deletions,
+            });
+        }
+
+        Ok(result)
+    }
 
     async fn get_pr_list(&self, query: &str) -> Result<Vec<octocrab::models::issues::Issue>> {
         println!("API call to Github: {}", query);
@@ -286,12 +307,18 @@ impl GithubClient {
     }
 
     async fn get_pr_details(&self, owner: &str, repo: &str, pr_number: u64) -> Result<PrDetails> {
-        let date_range = DateRange::get();
+        let mut date_range = DateRange::get().clone();
+
+        let delta = date_range.end.date_naive() - date_range.start.date_naive();
+        if delta.num_days() <= 0 {
+            date_range.start = date_range.start - TimeDelta::days(1);
+            date_range.end = date_range.end + TimeDelta::days(1);
+        }
 
         let (reviews, comments, review_comments) = tokio::join!(
-            self.get_reviews(owner, repo, pr_number, date_range),
-            self.get_comments(owner, repo, pr_number, date_range),
-            self.get_review_comments(owner, repo, pr_number, date_range),
+            self.get_reviews(owner, repo, pr_number, &date_range),
+            self.get_comments(owner, repo, pr_number, &date_range),
+            self.get_review_comments(owner, repo, pr_number, &date_range),
         );
 
         Ok(PrDetails {
@@ -430,37 +457,172 @@ impl GithubClient {
         Ok(review_comments)
     }
 
+    // ============================
+    // Builders
+    // ============================
+
+    fn build_pr_query(&self, search_type: SearchType) -> String {
+        let org_filter = if !self.include_orgs.is_empty() {
+            self.include_orgs
+                .iter()
+                .map(|org| format!("org:{}", org))
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else {
+            String::new()
+        };
+
+        if org_filter.is_empty() {
+            format!("is:pr {}:{}", search_type, self.username)
+        } else {
+            format!("is:pr {}:{} {}", search_type, self.username, org_filter)
+        }
+    }
+
+    fn build_search_query(&self, search_type: SearchType) -> String {
+        let repo_filter = self.build_repo_filter();
+
+        if repo_filter.is_empty() {
+            format!("is:pr is:open {}:{}", search_type, self.username)
+        } else {
+            format!(
+                "is:pr is:open {}:{} {}",
+                search_type, self.username, repo_filter
+            )
+        }
+    }
+
+    fn build_repo_filter(&self) -> String {
+        if !self.include_repos.is_empty() {
+            return self
+                .include_repos
+                .iter()
+                .map(|repo| format!("repo:{}", repo))
+                .collect::<Vec<_>>()
+                .join(" ");
+        }
+
+        if !self.include_orgs.is_empty() {
+            return self
+                .include_orgs
+                .iter()
+                .map(|org| format!("org:{}", org))
+                .collect::<Vec<_>>()
+                .join(" ");
+        }
+
+        String::new()
+    }
+
+    fn build_pr_description(details: &PrDetails) -> String {
+        let mut desc = String::new();
+
+        if !details.reviews.is_empty() {
+            let _ = writeln!(desc, "Reviews:");
+
+            for review in &details.reviews {
+                let _ = writeln!(desc, "- {}:{}", review.author, review.state);
+
+                if let Some(truncated) = review.truncated_body(300).filter(|b| !b.is_empty()) {
+                    let _ = writeln!(desc, "  {}", truncated);
+                }
+            }
+
+            let _ = writeln!(desc);
+        }
+
+        if !details.review_comments.is_empty() {
+            let _ = writeln!(desc, "Review Comments:");
+
+            for comment in &details.review_comments {
+                let truncated = comment.truncated_body(300);
+                if truncated.trim().is_empty() {
+                    continue;
+                }
+
+                let location = format!(" ({})", comment.path);
+                let _ = writeln!(desc, "- {}{}:", comment.author, location);
+                let _ = writeln!(desc, "  {}", truncated);
+            }
+        }
+
+        if !details.comments.is_empty() {
+            let _ = writeln!(desc, "Comments:");
+
+            for comment in &details.comments {
+                let truncated = comment.truncated_body(300);
+                if truncated.trim().is_empty() {
+                    continue;
+                }
+
+                let _ = writeln!(desc, "- {}:", comment.author);
+                let _ = writeln!(desc, "   {}", truncated);
+            }
+
+            let _ = writeln!(desc);
+        }
+
+        let review_state = Self::determine_review_state(&details.reviews);
+
+        if let Some(review_state) = review_state {
+            let _ = writeln!(desc, "Review current state: {}", review_state);
+        }
+
+        desc.trim_end().to_string()
+    }
+
+    fn determine_review_state(reviews: &[PrReview]) -> Option<String> {
+        /*
+         * Priority: ChangesRequested > Approved > Commented
+         */
+        let mut has_approved = false;
+        let mut has_commented = false;
+
+        for review in reviews {
+            match review.state {
+                ReviewState::ChangesRequested => return Some("changes_requested".to_string()),
+                ReviewState::Approved => has_approved = true,
+                ReviewState::Commented => has_commented = true,
+                _ => {}
+            }
+        }
+
+        if has_approved {
+            Some("approved".to_string())
+        } else if has_commented {
+            Some("commented".to_string())
+        } else {
+            None
+        }
+    }
+
+    // ============================
+    // Helpers
+    // ============================
+
+    fn deduplicate_tasks(tasks: Vec<Task>) -> Vec<Task> {
+        use std::collections::HashSet;
+
+        let mut seen = HashSet::new();
+        tasks
+            .into_iter()
+            .filter(|task| seen.insert(task.id.clone()))
+            .collect()
+    }
+
+    fn parse_repo_from_url(url: &str) -> Option<(String, String)> {
+        // https://github.com/owner/repo/pull/123
+        let parts: Vec<&str> = url.split('/').collect();
+        if parts.len() >= 5 {
+            Some((parts[3].to_string(), parts[4].to_string()))
+        } else {
+            None
+        }
+    }
+
     fn is_bot(&self, user: Option<&octocrab::models::Author>) -> bool {
         user.as_ref()
             .map(|u| self.bots.contains(&u.login))
             .unwrap_or(false)
-    }
-}
-
-// ============================
-// Utilities
-// ============================
-
-fn truncate_text(text: &str, max_len: usize) -> String {
-    let text = text.trim();
-    let chars = text.chars();
-    if chars.clone().count() <= max_len {
-        return text.to_string();
-    }
-    let truncated: String = chars.take(max_len).collect();
-    format!("{}...", truncated)
-}
-
-pub enum SearchType {
-    Involved,
-    Author,
-}
-
-impl std::fmt::Display for SearchType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SearchType::Involved => write!(f, "involves"),
-            SearchType::Author => write!(f, "author"),
-        }
     }
 }

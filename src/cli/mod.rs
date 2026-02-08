@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 pub mod auth;
 pub mod config;
+pub mod stats;
 pub mod sync;
 
 #[derive(Parser)]
@@ -36,6 +37,20 @@ pub enum Commands {
 
         #[arg(long, value_delimiter = ',')]
         plugins: Option<Vec<String>>,
+
+        #[arg(long, default_value = "today")]
+        mode: String,
+
+        #[arg(long)]
+        from: Option<String>,
+
+        #[arg(long)]
+        to: Option<String>,
+    },
+
+    Stats {
+        #[arg(long, default_value = "ai-code")]
+        r#type: String,
 
         #[arg(long, default_value = "today")]
         mode: String,

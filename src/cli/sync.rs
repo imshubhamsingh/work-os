@@ -1,4 +1,5 @@
 use crate::core::task::{PersonRole, Task};
+use crate::core::registry::PluginRegistry;
 use crate::error::{Result, WorkOsError};
 use crate::generators::markdown::{format_duration, get_task_icon, MarkdownGenerator};
 use crate::models::config::WorkOsConfig;
@@ -6,6 +7,32 @@ use crate::models::date_range::DateRange;
 use crate::models::state::WorkOsState;
 use crate::plugins::create_registry;
 use colored::*;
+
+pub fn setup_workspace(
+    run_mode: String,
+    from_date: Option<String>,
+    to_date: Option<String>,
+) -> Result<(WorkOsConfig, WorkOsState, PluginRegistry)> {
+    let config = WorkOsConfig::load()?;
+    let state = WorkOsState::load()?;
+
+    let range = DateRange::resolve_date_range(
+        from_date.as_deref(),
+        to_date.as_deref(),
+        run_mode.as_str(),
+        &state,
+    )?;
+
+    println!("{}", "Date range:".dimmed());
+    println!("  {}", range.describe());
+    DateRange::init(range);
+
+    let registry = create_registry(&config)?;
+
+    println!();
+
+    Ok((config, state, registry))
+}
 
 pub async fn run(
     json_output: bool,
@@ -15,19 +42,7 @@ pub async fn run(
     from_date: Option<String>,
     to_date: Option<String>,
 ) -> Result<()> {
-    let config = WorkOsConfig::load()?;
-    let mut state = WorkOsState::load()?;
-
-    let range = DateRange::resolve_date_range(
-        from_date.as_deref(),
-        to_date.as_deref(),
-        run_mode.as_str(),
-        &state,
-    )?;
-    println!("{}", "Date range:".dimmed());
-    println!("  {}", range.describe());
-    DateRange::init(range);
-    let registry = create_registry(&config)?;
+    let (config, mut state, registry) = setup_workspace(run_mode, from_date, to_date)?;
 
     println!("{}", "Plugins:".dimmed());
 
@@ -76,7 +91,7 @@ pub async fn run(
         );
     }
 
-    state.update_daily_brief(&range.mode)?;
+    state.update_daily_brief(&DateRange::get().mode)?;
 
     Ok(())
 }

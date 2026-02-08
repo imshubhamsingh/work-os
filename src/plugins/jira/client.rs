@@ -26,7 +26,7 @@ pub struct JiraClient {
 
 impl JiraClient {
     pub fn new(config: &JiraConfig) -> Result<Self> {
-        let credentials = format!("{}:{}", config.email, config.api_token);
+        let credentials = format!("{}:{}", config.email, config.token);
         let encoded = general_purpose::STANDARD.encode(credentials.as_bytes());
         let auth_header = format!("Basic {}", encoded);
 

@@ -17,7 +17,33 @@ pub struct Task {
     pub updated_at: DateTime<Utc>,
     pub due_date: Option<DateTime<Utc>>,
     pub people: Vec<Person>,
+    pub metadata: TaskMetadata,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TaskMetadata {
+    GitHub(GitHubMetadata),
+    // Slack(SlackMetadata),
+    // Jira(JiraMetadata),
+    None,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubMetadata {
+    pub repo: String,
+    pub number: u64,
+    pub state: String,
+    pub comments: u32,
+    pub additions: Option<u64>,
+    pub deletions: Option<u64>,
+}
+
+// #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+// pub struct ReviewCounts {
+//     pub approved: u32,
+//     pub changes_requested: u32,
+//     pub commented: u32,
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Priority {
@@ -79,6 +105,7 @@ impl Task {
             updated_at: now,
             due_date: None,
             people: Vec::new(),
+            metadata: TaskMetadata::None,
         }
     }
 
@@ -105,6 +132,11 @@ impl Task {
 
     pub fn with_status(mut self, status: TaskStatus) -> Self {
         self.status = status;
+        self
+    }
+
+    pub fn with_metadata(mut self, metadata: TaskMetadata) -> Self {
+        self.metadata = metadata;
         self
     }
 }

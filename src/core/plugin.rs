@@ -105,6 +105,8 @@ impl ConfigField {
     }
 }
 
+use std::any::Any;
+
 #[async_trait]
 pub trait Plugin: Send + Sync {
     fn metadata(&self) -> PluginMetadata;
@@ -113,4 +115,5 @@ pub trait Plugin: Send + Sync {
     fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()>;
     async fn test_connection(&self) -> Result<bool>;
     async fn fetch_tasks(&self) -> Result<Vec<Task>>;
+    fn as_any(&self) -> &dyn Any;
 }

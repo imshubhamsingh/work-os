@@ -74,7 +74,7 @@ impl Plugin for JiraPlugin {
                 default: None,
             },
             ConfigField {
-                name: "api_token",
+                name: "token",
                 label: "API Token",
                 help: "API token from https://id.atlassian.com/manage-profile/security/api-tokens",
                 field_type: ConfigFieldType::Secret,
@@ -130,8 +130,8 @@ impl Plugin for JiraPlugin {
             .ok_or_else(|| WorkOsError::Config("Jira missing 'email'".into()))?
             .to_string();
 
-        let api_token = values
-            .get("api_token")
+        let token = values
+            .get("token")
             .and_then(|v| v.as_str())
             .ok_or_else(|| WorkOsError::Config("Jira missing 'api_token'".into()))?
             .to_string();
@@ -149,7 +149,7 @@ impl Plugin for JiraPlugin {
         let jira_config = JiraConfig {
             domain,
             email,
-            api_token,
+            token,
             filters,
         };
 
@@ -171,5 +171,9 @@ impl Plugin for JiraPlugin {
             }
             None => Ok(Vec::new()),
         }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

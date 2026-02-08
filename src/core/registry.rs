@@ -1,6 +1,6 @@
 use crate::core::plugin::Plugin;
 use crate::core::task::Task;
-use crate::error::Result;
+use crate::error::{Result, WorkOsError};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -45,6 +45,11 @@ impl PluginRegistry {
             }
         }
         Ok(tasks)
+    }
+
+    pub fn get_client(&self, plugin_name: &str) -> Result<Arc<dyn Plugin>> {
+        self.get(plugin_name)
+            .ok_or_else(|| WorkOsError::Config(format!("{} plugin not found", plugin_name)))
     }
 }
 

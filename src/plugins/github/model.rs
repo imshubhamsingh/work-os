@@ -25,6 +25,12 @@ pub struct PrReview {
     pub body: Option<String>,
 }
 
+impl PrReview {
+    pub fn truncated_body(&self, max_len: usize) -> Option<String> {
+        self.body.as_ref().map(|body| truncate_text(body, max_len))
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ReviewState {
     Approved,
@@ -73,10 +79,58 @@ pub struct PrComment {
     pub created_at: DateTime<Utc>,
 }
 
+impl PrComment {
+    pub fn truncated_body(&self, max_len: usize) -> String {
+        truncate_text(&self.body, max_len)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReviewComment {
     pub author: String,
     pub body: String,
     pub path: String,
     pub created_at: DateTime<Utc>,
+}
+
+impl ReviewComment {
+    pub fn truncated_body(&self, max_len: usize) -> String {
+        truncate_text(&self.body, max_len)
+    }
+}
+
+/*
+ * Utility function for truncating text
+ */
+fn truncate_text(text: &str, max_len: usize) -> String {
+    let text = text.trim();
+    let chars = text.chars();
+    if chars.clone().count() <= max_len {
+        return text.to_string();
+    }
+    let truncated: String = chars.take(max_len).collect();
+    format!("{}...", truncated)
+}
+
+#[derive(Debug, Clone)]
+pub struct PrCommit {
+    pub sha: String,
+    pub message: String,
+    pub date: DateTime<Utc>,
+    pub additions: u64,
+    pub deletions: u64,
+}
+
+pub enum SearchType {
+    Involved,
+    Author,
+}
+
+impl std::fmt::Display for SearchType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SearchType::Involved => write!(f, "involves"),
+            SearchType::Author => write!(f, "author"),
+        }
+    }
 }

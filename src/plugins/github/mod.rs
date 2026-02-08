@@ -1,5 +1,7 @@
 mod client;
 pub mod model;
+pub mod ai_stats;
+pub mod commit_analyzer;
 
 use std::collections::HashMap;
 
@@ -29,6 +31,10 @@ impl GithubPlugin {
         self.config = Some(config);
         self.client = Some(client);
         Ok(())
+    }
+
+    pub fn client(&self) -> Option<&GithubClient> {
+        self.client.as_ref()
     }
 }
 
@@ -131,5 +137,9 @@ impl Plugin for GithubPlugin {
             Some(client) => client.get_all_tasks().await,
             None => Ok(Vec::new()),
         }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

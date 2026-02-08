@@ -50,6 +50,7 @@ impl SlackClient {
 
         all_tasks.extend(self.get_all_channel_messages().await?);
         all_tasks.extend(self.get_all_mentions(None).await?);
+        all_tasks.extend(self.get_all_my_messages().await?);
         all_tasks.extend(self.get_all_dms().await?);
         all_tasks.extend(self.get_all_group_dms().await?);
         all_tasks.extend(self.get_all_keywords_messages().await?);
@@ -66,6 +67,9 @@ impl SlackClient {
         let channels = self.get_relevant_channels(&["im"]).await?;
         let mut tasks = Vec::new();
 
+        let current_user: SlackResponse<AuthTestData> = self.get("auth.test").await?;
+        let current_user_id = current_user.data.map(|d| d.user_id).unwrap_or_default();
+
         for channel in channels {
             let messages = self.get_channel_messages(&channel.id).await?;
             if messages.is_empty() {
@@ -75,8 +79,12 @@ impl SlackClient {
             let Some(user_id) = channel.user.as_deref() else {
                 continue;
             };
-            let Some(user) = self.get_valid_user(user_id).await? else {
-                continue;
+
+            let is_self_dm = user_id == current_user_id;
+
+            let user = match self.get_valid_user(user_id).await? {
+                Some(u) => u,
+                None => continue,
             };
 
             let real_name = user.real_name.clone().unwrap_or_else(|| user.name.clone());
@@ -91,9 +99,14 @@ impl SlackClient {
 
             let updated_at = latest_message_ts(&messages);
 
+            let title = match is_self_dm {
+                true => "Notes to self (Self DM)".to_string(),
+                _ => format!("DM between you and {}", real_name),
+            };
+
             let task = Self::build_task(
                 &channel.id,
-                format!("DM between you and {}", real_name),
+                title,
                 format!("https://slack.com/archives/{}", channel.id),
                 description,
                 updated_at,
@@ -284,6 +297,73 @@ impl SlackClient {
         Ok(tasks)
     }
 
+    async fn get_all_my_messages(&mut self) -> Result<Vec<Task>> {
+        let mut tasks = Vec::new();
+
+        let current_user: SlackResponse<AuthTestData> = self.get("auth.test").await?;
+        let user_id = current_user
+            .data
+            .expect("auth.test must return data")
+            .user_id;
+
+        let date_range = DateRange::get();
+        let after_date = (date_range.start - TimeDelta::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
+        let before_date = (date_range.end + TimeDelta::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        let search_message_url = format!(
+            "search.messages?query=from:<@{}> after:{} before:{}",
+            user_id, after_date, before_date
+        );
+        let my_messages: SlackResponse<SlackSearch> = self.get(&search_message_url).await?;
+
+        if !my_messages.ok {
+            return Ok(Vec::new());
+        }
+
+        let matches = my_messages
+            .data
+            .map(|d| d.messages.matches)
+            .unwrap_or_default();
+
+        if matches.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        for result in matches.iter() {
+            // dm and group dm are skipped
+            if result.channel.id.starts_with("D") || result.channel.id.starts_with("G") {
+                continue;
+            }
+
+            let updated_at = parse_ts(&result.ts).unwrap_or_else(Utc::now);
+
+            let author = self.get_user_info(&result.user).await?;
+
+            if author.is_unknown() {
+                continue;
+            }
+
+            let formatted_text = self.replace_user_id_with_handle(&result.text).await?;
+            let description = format!("{}: {}", author.name, formatted_text);
+
+            let task = Self::build_task(
+                &result.channel.id,
+                format!("My message in #{}", result.channel.name),
+                result.permalink.clone(),
+                description,
+                updated_at,
+            );
+
+            tasks.push(task);
+        }
+
+        Ok(tasks)
+    }
+
     // ============================
     // Slack API
     // ============================
@@ -311,8 +391,6 @@ impl SlackClient {
     }
 
     async fn get_channel_messages(&self, channel_id: &str) -> Result<Vec<SlackMessage>> {
-        // let (oldest_timestamp, newest_timestamp) = last_24_hr_range();
-
         let date_range = DateRange::get();
         let oldest_timestamp = date_range.start.timestamp();
         let newest_timestamp = date_range.end.timestamp();
@@ -501,6 +579,20 @@ impl SlackClient {
             }
         }
 
+        // replace user group mentions in simple format: <S0A81LBG1QE>
+        let usergroup_reg = Regex::new(r"<(S[A-Z0-9]+)>").unwrap();
+        for cap in usergroup_reg.captures_iter(&result.clone()) {
+            let usergroup_id = &cap[1];
+            let full_match = cap.get(0).unwrap().as_str();
+
+            let usergroup = self.get_usergroup_info(usergroup_id).await?;
+
+            if !usergroup.is_unknown() {
+                let handle = format!("@{}", usergroup.handle);
+                result = result.replace(full_match, &handle);
+            }
+        }
+
         Ok(result)
     }
 
@@ -660,13 +752,6 @@ fn parse_ts(ts: &str) -> Option<DateTime<Utc>> {
         .ok()
         .map(|dt| dt.into())
 }
-
-// fn last_24_hr_range() -> (i64, i64) {
-//     let now = Utc::now().timestamp();
-//     let day_ago = now - 86400;
-//     let go_back_by_day: i64 = 0 * 86400;
-//     (day_ago - go_back_by_day, now)
-// }
 
 fn extract_parent_ts(permalink: &str) -> Option<String> {
     let url = Url::parse(permalink).ok()?;
