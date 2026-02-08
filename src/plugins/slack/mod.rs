@@ -85,7 +85,7 @@ impl Plugin for SlackPlugin {
         ]
     }
 
-    fn configure_from_values(&mut self, values: &HashMap<String, Value>) -> Result<()> {
+    fn configure_from_values(&mut self, values: &HashMap<String, Value>, _output_path: &PathBuf) -> Result<()> {
         let token = values
             .get("token")
             .and_then(|v| v.as_str())

@@ -34,7 +34,7 @@ impl Default for OutputConfig {
             base_path: dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("."))
                 .join(".work-os"),
-            markdown_path: "markdown".to_string(),
+            markdown_path: "raw".to_string(),
         }
     }
 }

@@ -33,6 +33,44 @@ Maintains stateful follow-ups across daily and weekly contexts.
 
 ---
 
+## File Structure
+
+Work-OS uses a date-based folder structure for organizing data:
+
+```
+$WORK_OS_BASE_DIR/
+├── raw/
+│   ├── 2026-02-08/
+│   │   ├── sync-0943.md              # Sync at 09:43 AM
+│   │   ├── sync-1430.md              # Sync at 14:30 PM
+│   │   └── moms/                     # Granola meeting notes (if configured)
+│   │       ├── meeting-name-1/
+│   │       │   ├── transcript.md
+│   │       │   └── summary.md
+│   │       └── meeting-name-2/
+│   │           ├── transcript.md
+│   │           └── summary.md
+│   ├── 2026-02-07/
+│   │   ├── sync-0930.md
+│   │   └── moms/
+│   └── ...
+├── today.md
+├── archive/
+│   ├── 2026-02-07.md
+│   └── weekly/
+│       └── 2026-02-01_2026-02-07.md
+└── follow-ups.md
+```
+
+**Key Points:**
+- Each day has its own folder: `raw/YYYY-MM-DD/`
+- Sync files use 24-hour format: `sync-HHMM.md`
+- Multiple syncs per day are supported
+- Granola MOMs are organized under `moms/` within the date folder
+- All raw data for a specific date is self-contained and easy to archive/delete
+
+---
+
 ## Environment Variables
 
 These templates use environment variables for portability. Configure based on your setup:

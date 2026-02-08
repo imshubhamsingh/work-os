@@ -1,27 +1,27 @@
 use core::str;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Task {
+pub struct Message {
     pub id: String,
     pub source: String,
-    pub task_type: TaskType,
+    pub message_type: MessageType,
     pub title: String,
     pub description: Option<String>,
     pub url: String,
     pub priority: Priority,
-    pub status: TaskStatus,
+    pub status: MessageStatus,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub due_date: Option<DateTime<Utc>>,
     pub people: Vec<Person>,
-    pub metadata: TaskMetadata,
+    pub metadata: MessageMetadata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TaskMetadata {
+pub enum MessageMetadata {
     GitHub(GitHubMetadata),
     // Slack(SlackMetadata),
     // Jira(JiraMetadata),
@@ -38,13 +38,6 @@ pub struct GitHubMetadata {
     pub deletions: Option<u64>,
 }
 
-// #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-// pub struct ReviewCounts {
-//     pub approved: u32,
-//     pub changes_requested: u32,
-//     pub commented: u32,
-// }
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Priority {
     Critical,
@@ -55,7 +48,7 @@ pub enum Priority {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TaskType {
+pub enum MessageType {
     PullRequest,
     Issue,
     Review,
@@ -67,7 +60,7 @@ pub enum TaskType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TaskStatus {
+pub enum MessageStatus {
     Open,
     InProgress,
     Blocked,
@@ -90,23 +83,23 @@ pub enum PersonRole {
     Mentioned,
 }
 
-impl Task {
-    pub fn new(source: &str, task_type: TaskType, id: &str, title: String, url: String) -> Self {
+impl Message {
+    pub fn new(source: &str, message_type: MessageType, id: &str, title: String, url: String) -> Self {
         let now = Utc::now();
         Self {
-            id: format!("{}:{}:{}", source, task_type.short_name(), id),
+            id: format!("{}:{}:{}", source, message_type.short_name(), id),
             source: source.to_string(),
-            task_type,
+            message_type,
             title,
             description: None,
             url,
             priority: Priority::Unknown,
-            status: TaskStatus::Open,
+            status: MessageStatus::Open,
             created_at: now,
             updated_at: now,
             due_date: None,
             people: Vec::new(),
-            metadata: TaskMetadata::None,
+            metadata: MessageMetadata::None,
         }
     }
 
@@ -131,28 +124,32 @@ impl Task {
         self
     }
 
-    pub fn with_status(mut self, status: TaskStatus) -> Self {
+    pub fn with_status(mut self, status: MessageStatus) -> Self {
         self.status = status;
         self
     }
 
-    pub fn with_metadata(mut self, metadata: TaskMetadata) -> Self {
+    pub fn with_metadata(mut self, metadata: MessageMetadata) -> Self {
         self.metadata = metadata;
         self
     }
+
+    pub fn format_absolute_time(date: DateTime<Utc>) -> String {
+        date.with_timezone(&Local).format("%b %d, %l:%M %p").to_string()
+    }
 }
 
-impl TaskType {
+impl MessageType {
     pub fn short_name(&self) -> &str {
         match self {
-            TaskType::PullRequest => "pr",
-            TaskType::Issue => "issue",
-            TaskType::Review => "review",
-            TaskType::Message => "message",
-            TaskType::Ticket => "ticket",
-            TaskType::Statistics => "statistics",
-            TaskType::MOM => "mom",
-            TaskType::Other(name) => name,
+            MessageType::PullRequest => "pr",
+            MessageType::Issue => "issue",
+            MessageType::Review => "review",
+            MessageType::Message => "message",
+            MessageType::Ticket => "ticket",
+            MessageType::Statistics => "statistics",
+            MessageType::MOM => "mom",
+            MessageType::Other(name) => name,
         }
     }
 }
@@ -169,14 +166,14 @@ impl std::fmt::Display for Priority {
     }
 }
 
-impl std::fmt::Display for TaskStatus {
+impl std::fmt::Display for MessageStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TaskStatus::Open => write!(f, "Open"),
-            TaskStatus::InProgress => write!(f, "In Progress"),
-            TaskStatus::Blocked => write!(f, "Blocked"),
-            TaskStatus::Done => write!(f, "Done"),
-            TaskStatus::Other(s) => write!(f, "{}", s),
+            MessageStatus::Open => write!(f, "Open"),
+            MessageStatus::InProgress => write!(f, "In Progress"),
+            MessageStatus::Blocked => write!(f, "Blocked"),
+            MessageStatus::Done => write!(f, "Done"),
+            MessageStatus::Other(s) => write!(f, "{}", s),
         }
     }
 }
