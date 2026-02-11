@@ -1,6 +1,6 @@
 use core::str;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,6 +139,10 @@ impl Task {
     pub fn with_metadata(mut self, metadata: TaskMetadata) -> Self {
         self.metadata = metadata;
         self
+    }
+
+    pub fn format_absolute_time(date: DateTime<Utc>) -> String {
+        date.with_timezone(&Local).format("%b %d, %l:%M %p").to_string()
     }
 }
 

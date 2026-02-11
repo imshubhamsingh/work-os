@@ -1,7 +1,7 @@
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, Local, TimeDelta, Utc};
 use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use std::fmt::Write;
@@ -615,7 +615,10 @@ impl SlackClient {
             let message_key = format!("{}:{}", &channel_id, &msg.ts);
 
             if self.seen_messages.insert(message_key) {
-                let _ = writeln!(description, "{}: {}", author.name, text);
+                let ts = parse_ts(&msg.ts)
+                    .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+                    .unwrap_or_default();
+                let _ = writeln!(description, "[{}] {}: {}", ts, author.name, text);
                 let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
                 if !reactions.is_empty() {
                     let _ = writeln!(description, "  Reactions:{}", reactions);
@@ -642,7 +645,10 @@ impl SlackClient {
 
             let text = self.replace_user_id_with_handle(&msg.text).await?;
 
-            let _ = writeln!(description, "{}: {}", author.name, text);
+            let ts = parse_ts(&msg.ts)
+                .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+                .unwrap_or_default();
+            let _ = writeln!(description, "[{}] {}: {}", ts, author.name, text);
             let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
             if !reactions.is_empty() {
                 let _ = writeln!(description, "  Reactions:{}", reactions);
@@ -705,7 +711,10 @@ impl SlackClient {
             let author = self.get_user_info(&t.user).await?;
             if !author.is_unknown() {
                 let msg = self.replace_user_id_with_handle(&t.text).await?;
-                let _ = writeln!(description, "{}: {}", author.name, msg);
+                let ts = parse_ts(&t.ts)
+                    .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+                    .unwrap_or_default();
+                let _ = writeln!(description, "[{}] {}: {}", ts, author.name, msg);
                 let reactions = self.format_reactions(t.reactions.as_ref()).await?;
                 if !reactions.is_empty() {
                     let _ = writeln!(description, "  Reactions:{}", reactions);
