@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local, Utc};
+use chrono::Local;
 
 use crate::core::task::{PersonRole, Task, TaskType};
 use crate::error::Result;
@@ -63,7 +63,7 @@ impl MarkdownGenerator {
         let author = find_author(task);
         metadata.push(format!("by @{}", author).to_string());
 
-        metadata.push(format_duration(task.created_at).to_string());
+        metadata.push(Task::format_absolute_time(task.created_at));
 
         if !metadata.is_empty() {
             md.push_str(&format!("     └─ {}\n", metadata.join(" · ")));
@@ -101,34 +101,7 @@ pub fn find_author(task: &Task) -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
-const TIME_UNITS: [(&str, i64); 6] = [
-    ("y", 60 * 24 * 365),
-    ("mo", 60 * 24 * 30),
-    ("w", 60 * 24 * 7),
-    ("d", 60 * 24),
-    ("h", 60),
-    ("m", 1),
-];
 
-pub fn format_duration(date: DateTime<Utc>) -> String {
-    let mut minutes = (Utc::now().timestamp() - date.timestamp()) / 60;
-
-    let parts: Vec<String> = TIME_UNITS
-        .iter()
-        .filter_map(|(label, size)| {
-            let value = minutes / size;
-            minutes %= size;
-
-            (value > 0).then(|| format!("{value}{label}"))
-        })
-        .collect();
-
-    if parts.is_empty() {
-        "just now".to_string()
-    } else {
-        format!("{} ago", parts.join(" "))
-    }
-}
 
 pub fn get_task_icon(task: &Task) -> String {
     let icon = match task.task_type {

@@ -6,7 +6,7 @@ use crate::models::date_range::DateRange;
 use crate::plugins::github::ai_stats::{AIUsageStats, PrAIStats};
 use crate::plugins::github::commit_analyzer::CommitMessageAnalyzer;
 use crate::plugins::github::model::*;
-use chrono::TimeDelta;
+use chrono::{Local, TimeDelta};
 use octocrab::Octocrab;
 use std::fmt::Write;
 
@@ -24,6 +24,7 @@ impl GithubClient {
     // ============================
 
     pub fn new(config: &GitHubConfig) -> Result<Self> {
+        println!("{}", config.token.clone());
         let octocrab = Octocrab::builder()
             .personal_token(config.token.clone())
             .build()
@@ -176,14 +177,14 @@ impl GithubClient {
                 continue;
             }
 
-            let lines_added: u64 = commits_in_range.iter().map(|c| c.additions).sum();
-            let lines_deleted: u64 = commits_in_range.iter().map(|c| c.deletions).sum();
+            let analysis = analyzer.analyze_pr_commits(&commits_in_range);
+
+            let lines_added: u64 = analysis.commits.iter().filter(|c| !c.is_merge).map(|c| c.additions).sum();
+            let lines_deleted: u64 = analysis.commits.iter().filter(|c| !c.is_merge).map(|c| c.deletions).sum();
 
             if lines_added == 0 {
                 continue;
             }
-
-            let analysis = analyzer.analyze_pr_commits(&commits_in_range);
 
             let ai_loc = (lines_added as f32 * analysis.aggregate_score).round() as u64;
             let human_loc = lines_added.saturating_sub(ai_loc);
@@ -521,7 +522,8 @@ impl GithubClient {
             let _ = writeln!(desc, "Reviews:");
 
             for review in &details.reviews {
-                let _ = writeln!(desc, "- {}:{}", review.author, review.state);
+                let ts = review.submitted_at.with_timezone(&Local).format("%b %d, %l:%M %p");
+                let _ = writeln!(desc, "- {} [{}]: {}", review.author, ts, review.state);
 
                 if let Some(truncated) = review.truncated_body(300).filter(|b| !b.is_empty()) {
                     let _ = writeln!(desc, "  {}", truncated);
@@ -540,8 +542,9 @@ impl GithubClient {
                     continue;
                 }
 
+                let ts = comment.created_at.with_timezone(&Local).format("%b %d, %l:%M %p");
                 let location = format!(" ({})", comment.path);
-                let _ = writeln!(desc, "- {}{}:", comment.author, location);
+                let _ = writeln!(desc, "- {} [{}]{}:", comment.author, ts, location);
                 let _ = writeln!(desc, "  {}", truncated);
             }
         }
@@ -555,7 +558,8 @@ impl GithubClient {
                     continue;
                 }
 
-                let _ = writeln!(desc, "- {}:", comment.author);
+                let ts = comment.created_at.with_timezone(&Local).format("%b %d, %l:%M %p");
+                let _ = writeln!(desc, "- {} [{}]:", comment.author, ts);
                 let _ = writeln!(desc, "   {}", truncated);
             }
 

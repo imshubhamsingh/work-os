@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use base64::{engine::general_purpose, Engine as _};
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{DateTime, FixedOffset, Local, Utc};
 use regex::Regex;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
@@ -275,6 +275,14 @@ fn build_description(issue: &JiraIssue) -> String {
     ));
     lines.push(format!("Status: {}", issue.fields.status.name));
 
+    let created_ts = parse_jira_datetime(&issue.fields.created)
+        .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+    let updated_ts = parse_jira_datetime(&issue.fields.updated)
+        .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+    lines.push(format!("Created: {} | Updated: {}", created_ts, updated_ts));
+
     let assignee = issue
         .fields
         .assignee
@@ -330,7 +338,7 @@ fn build_description(issue: &JiraIssue) -> String {
                 }
 
                 let ts = parse_jira_datetime(&e.created)
-                    .map(|dt| dt.format("%b %d, %l:%M %p").to_string())
+                    .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
                     .unwrap_or_else(|| "Unknown".to_string());
 
                 Some(format!("→ {}: {} ({})", ts, summary, e.author.display_name))
@@ -353,7 +361,7 @@ fn build_description(issue: &JiraIssue) -> String {
             .take(6)
             .map(|c| {
                 let ts = parse_jira_datetime(&c.created)
-                    .map(|dt| dt.format("%b %d, %l:%M %p").to_string())
+                    .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
                     .unwrap_or_else(|| "Unknown".to_string());
                 let body = c.body_text();
                 let body_short = if body.len() > 100 {

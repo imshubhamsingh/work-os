@@ -1,5 +1,6 @@
 use crate::error::{Result, WorkOsError};
 use crate::plugins::granola::model::{DocumentPanel, GranolaDocument, TranscriptSegment};
+use chrono::Local;
 use std::fs;
 use std::path::PathBuf;
 
@@ -23,7 +24,7 @@ impl MomWriter {
         panel: Option<&DocumentPanel>,
     ) -> Result<(PathBuf, String)> {
         // Create path: raw/YYYY-MM-DD/moms/meeting-name/
-        let date_folder = doc.created_at.format("%Y-%m-%d").to_string();
+        let date_folder = doc.created_at.with_timezone(&Local).format("%Y-%m-%d").to_string();
         let mom_date_folder = self
             .output_path
             .join(&date_folder)
@@ -81,7 +82,7 @@ impl MomWriter {
         let title = doc.title.as_deref().unwrap_or("Untitled Meeting");
         content.push_str(&format!("# {} - Summary\n\n", title));
 
-        let date_str = doc.created_at.format("%B %e, %Y at %l:%M %p");
+        let date_str = doc.created_at.with_timezone(&Local).format("%B %e, %Y at %l:%M %p");
         content.push_str(&format!("**Date**: {}\n", date_str));
 
         let attendees = doc.get_attendees_formated();

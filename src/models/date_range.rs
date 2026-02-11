@@ -107,7 +107,7 @@ impl DateRange {
     pub fn describe(&self) -> String {
         match self.mode {
             RunMode::Today => "today".to_string(),
-            RunMode::SinceLastRun => format!("since {}", self.start.format("%Y-%m-%d %H:%M")),
+            RunMode::SinceLastRun => format!("since {}", self.start.with_timezone(&Local).format("%Y-%m-%d %H:%M")),
             RunMode::Weekend => "weekend (Fri-Sun)".to_string(),
             RunMode::Days(n) => format!("last {} days", n),
             RunMode::Custom => format!(

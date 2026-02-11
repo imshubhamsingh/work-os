@@ -1,7 +1,7 @@
 use crate::core::task::{PersonRole, Task};
 use crate::core::registry::PluginRegistry;
 use crate::error::{Result, WorkOsError};
-use crate::generators::markdown::{format_duration, get_task_icon, MarkdownGenerator};
+use crate::generators::markdown::{get_task_icon, MarkdownGenerator};
 use crate::models::config::WorkOsConfig;
 use crate::models::date_range::DateRange;
 use crate::models::state::WorkOsState;
@@ -126,7 +126,7 @@ fn print_task(task: &Task) {
         metadata.push(format!("by @{}", author.username).dimmed().to_string());
     }
 
-    metadata.push(format_duration(task.created_at).dimmed().to_string());
+    metadata.push(Task::format_absolute_time(task.created_at).dimmed().to_string());
 
     if !metadata.is_empty() {
         println!("     └─ {}", metadata.join(" · "));
