@@ -24,6 +24,14 @@ Two reasons, really:
 
 This started as a learning project and turned into something I actually use every day. If it helps you too, that's a bonus!
 
+### The philosophy
+
+The core idea behind this project is using AI as a **learning tool**, not a replacement for learning. I didn't want AI to just build things for me. I wanted to use it to understand *how* things work: why Rust ownership works the way it does, how async runtimes are structured, how to design a plugin system. AI accelerates that understanding; it doesn't skip it.
+
+Could I have built this faster in TypeScript? Absolutely. Probably a weekend project, maybe less with AI doing the heavy lifting. That was never the point.
+
+The productivity problem at work was the real-world constraint that kept the project grounded. Without a genuine problem to solve, it's easy for learning projects to stay theoretical.
+
 ## ✨ Why Should I Care?
 
 - **Stop Context Switching**: All your work items in one place
@@ -33,7 +41,27 @@ This started as a learning project and turned into something I actually use ever
 - **Flexible**: Daily briefs, weekly summaries, or custom date ranges
 - **Extensible**: Plugin-based architecture (add your own integrations!)
 
-## � Quick Start
+## 📦 Installation
+
+Download the latest macOS binary from [Releases](../../releases/latest):
+
+```bash
+# Apple Silicon (M1/M2/M3)
+curl -L https://github.com/imshubhamsingh/work-os/releases/latest/download/work-os-macos-arm64 -o work-os
+chmod +x work-os && sudo mv work-os /usr/local/bin/
+
+# Intel Mac
+curl -L https://github.com/imshubhamsingh/work-os/releases/latest/download/work-os-macos-x64 -o work-os
+chmod +x work-os && sudo mv work-os /usr/local/bin/
+```
+
+Or build from source:
+
+```bash
+cargo install --path .
+```
+
+## 🚀 Quick Start
 
 ```bash
 # Build it
@@ -61,7 +89,7 @@ work-os config set jira token YOUR_JIRA_API_TOKEN
 work-os sync
 ```
 
-That's it! Check the `/docs` folder for detailed setup instructions for each platform.
+That's it! See the plugin setup guides: [GitHub](docs/plugins/github.md) · [Slack](docs/plugins/slack.md) · [Jira](docs/plugins/jira.md) · [Granola](docs/plugins/granola.md)
 
 ## 💡 Cool Things You Can Do
 
@@ -157,11 +185,11 @@ This helps you understand your AI collaboration patterns and track productivity 
 Built with Rust because... well, why not? 🦀
 
 - **Plugins**: Each platform (GitHub, Slack, Jira, Granola) is a plugin
-- **Tasks**: Everything becomes a unified `Task` model
+- **Messages**: Everything becomes a unified `Message` model
 - **Outputs**: Terminal, JSON, or Markdown - pick your flavor
 - **Smart Syncing**: Only fetches what you need based on date ranges
 
-The architecture is clean and modular - adding new platforms is straightforward. Check `/docs` if you want to build a plugin!
+The architecture is clean and modular - adding new platforms is straightforward. See [Building a Plugin](docs/plugins/building-a-plugin.md).
 
 ## 🎨 Pretty Terminal Output
 
@@ -172,6 +200,8 @@ Work-OS doesn't just dump data - it makes it look good:
 - Clickable URLs
 - Clean formatting
 
+> **Note:** The current terminal output is pretty basic — it's essentially a styled dump. A proper interactive TUI (think panels, navigation, filtering) is something I want to build from scratch as a learning project.
+
 ## 🤓 For the Nerds
 
 - Written in Rust (2021 edition)
@@ -180,19 +210,63 @@ Work-OS doesn't just dump data - it makes it look good:
 - Proper error handling with `thiserror`
 - Config in TOML, state tracking, the works
 
-## � Documentation
+## 📖 Documentation
 
-Head to the `/docs` folder for:
-- Detailed setup guides
-- Plugin development
-- Configuration options
-- Architecture deep-dive
+| Doc | Description |
+|-----|-------------|
+| [My Workflow](docs/workflow.md) | How I actually use this day to day |
+| [Architecture](docs/architecture.md) | System overview, data flow, directory structure |
+| [Configuration](docs/configuration.md) | Full config file reference with examples |
+| [GitHub Plugin](docs/plugins/github.md) | Setup, AI stats, token scopes |
+| [Slack Plugin](docs/plugins/slack.md) | Setup, OAuth scopes, what gets fetched |
+| [Jira Plugin](docs/plugins/jira.md) | Setup, JQL filters, priority mapping |
+| [Granola Plugin](docs/plugins/granola.md) | Setup, cache location, limitations |
+| [Building a Plugin](docs/plugins/building-a-plugin.md) | How to add a new integration |
+
+## 🔮 Planned Integrations
+
+Plugins I want to add in the future:
+- **Google Calendar** — pull upcoming meetings and deadlines into your daily brief
+- **Google Docs / Sheets** — surface recently edited documents and spreadsheets
+- **Figma** — track design file updates and comments
+- **Notion** — sync tasks, pages, and databases
+
+## 💡 Where This Could Go
+
+Once you have weeks/months of your own work history sitting in markdown files, the daily brief is just the start. Some ideas I want to explore:
+
+**Personal context retrieval**
+- Before picking up a ticket, surface everything you've touched that's related: past PRs, the Slack threads where the design was debated, the meeting where the decision was made
+- "I've worked on something like this before" is useful. Knowing exactly what and where is better.
+
+**Reflection and growth**
+- Look back across weeks or months: where is your time actually going, which areas are you improving in, what keeps coming back as a blocker
+- Not as a performance report, just honest signal for yourself
+
+**Smarter meeting prep**
+- Given a calendar event, pull up everything relevant: past discussions with those people, related tickets, your own notes from last time
+- Walk in with context instead of scrambling to remember
+
+**Personal knowledge base**
+- Build up a searchable record of decisions you've made and why, written from actual data rather than from memory
+- Useful six months later when you're asking "why did we do it this way"
+
+**LLM agnostic**
+- Right now the AI workflow is built around Claude. That's fine until you hit a rate limit and have to wait. I want to make it easy to swap providers (Gemini, GPT, local models) without rewriting the prompts or templates.
+- Beyond just fallback, it's also a playground. Same prompt, same data, different models — a good way to compare outputs and get a feel for where each model actually differs in practice.
+- The goal is: one config change, everything still works.
+
+**Building my own RAG system**
+- All this synced data is sitting in markdown files — structured, dated, and searchable. That's a pretty good starting point for a retrieval-augmented generation system.
+- Rather than plugging into an existing RAG framework (like [qmd](https://github.com/tobi/qmd)), I want to build one from scratch here to actually understand how embedding, chunking, and retrieval work. Work-OS gives a real dataset to experiment on, which makes it less theoretical.
+
+The common thread: the raw material is already there. It's just scattered across tools and mostly forgotten after the week ends.
 
 ## 🤝 Contributing
 
-Got ideas? Found bugs? Want to add a plugin for your favorite tool? PRs welcome!
+Look, it's Rust — not exactly Go in terms of "everyone and their dog sends PRs". The borrow checker alone has probably scared off half the potential contributors. Totally fine by me, this is a personal project first.
 
-This is a fun side project that scratches my own itch. If it helps you too, awesome! If you make it better, even more awesome!
+That said, if you're one of the brave souls who enjoys fighting the compiler for fun (respect), found a bug, or want to add a plugin for your favourite tool — PRs are very welcome. If it helps you too, awesome. If you make it better, even more awesome.
 
 ## � License
 
