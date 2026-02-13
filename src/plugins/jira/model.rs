@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::task::{Priority, TaskStatus};
+use crate::core::message::{Priority, MessageStatus};
 
 #[derive(serde::Deserialize)]
 pub struct JiraSearchResponse {
@@ -103,7 +103,7 @@ impl JiraFields {
         if let Some(ref parent) = self.parent {
             if let Some(ref fields) = parent.fields {
                 if let Some(ref issue_type) = fields.issue_type {
-                    if issue_type.name.to_lowercase() == "task" {
+                    if issue_type.name.to_lowercase() == "message" {
                         let name = fields.summary.clone().unwrap_or_default();
                         return Some((parent.key.clone(), name));
                     }
@@ -128,12 +128,12 @@ pub struct JiraStatusCategory {
 }
 
 impl JiraStatusCategory {
-    pub fn map_status_category(status_category: Option<&JiraStatusCategory>) -> TaskStatus {
+    pub fn map_status_category(status_category: Option<&JiraStatusCategory>) -> MessageStatus {
         match status_category.map(|c| c.key.as_str()) {
-            Some("new") => TaskStatus::Open,                 // To Do
-            Some("indeterminate") => TaskStatus::InProgress, // In Progress
-            Some("done") => TaskStatus::Done,                // Done
-            _ => TaskStatus::Open,                           // Fallback
+            Some("new") => MessageStatus::Open,                 // To Do
+            Some("indeterminate") => MessageStatus::InProgress, // In Progress
+            Some("done") => MessageStatus::Done,                // Done
+            _ => MessageStatus::Open,                           // Fallback
         }
     }
 }

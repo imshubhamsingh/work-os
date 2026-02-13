@@ -16,4 +16,3 @@
 | [🐙 GitHub](./plugins/github.md) | PRs, reviews, and AI usage statistics |
 | [💬 Slack](./plugins/slack.md) | DMs, mentions, channels, and keyword tracking |
 | [🎫 Jira](./plugins/jira.md) | Issues via JQL filters |
-| [🍥 Granola](./plugins/granola.md) | Meeting notes from local cache (macOS only) |

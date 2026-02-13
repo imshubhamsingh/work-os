@@ -42,17 +42,9 @@ $WORK_OS_BASE_DIR/
 ├── raw/
 │   ├── 2026-02-08/
 │   │   ├── sync-0943.md              # Sync at 09:43 AM
-│   │   ├── sync-1430.md              # Sync at 14:30 PM
-│   │   └── moms/                     # Granola meeting notes (if configured)
-│   │       ├── meeting-name-1/
-│   │       │   ├── transcript.md
-│   │       │   └── summary.md
-│   │       └── meeting-name-2/
-│   │           ├── transcript.md
-│   │           └── summary.md
+│   │   └── sync-1430.md              # Sync at 14:30 PM
 │   ├── 2026-02-07/
-│   │   ├── sync-0930.md
-│   │   └── moms/
+│   │   └── sync-0930.md
 │   └── ...
 ├── today.md
 ├── archive/
@@ -66,7 +58,6 @@ $WORK_OS_BASE_DIR/
 - Each day has its own folder: `raw/YYYY-MM-DD/`
 - Sync files use 24-hour format: `sync-HHMM.md`
 - Multiple syncs per day are supported
-- Granola MOMs are organized under `moms/` within the date folder
 - All raw data for a specific date is self-contained and easy to archive/delete
 
 ---

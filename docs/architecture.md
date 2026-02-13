@@ -11,7 +11,6 @@ flowchart TD
     GitHub["🐙 GitHub Plugin"]
     Slack["💬 Slack Plugin"]
     Jira["🎫 Jira Plugin"]
-    Granola["🍥 Granola Plugin"]
     Core["core::Message"]
     TermOutput["Terminal Output"]
     JSONOutput["JSON Output"]
@@ -21,11 +20,9 @@ flowchart TD
     Registry --> GitHub
     Registry --> Slack
     Registry --> Jira
-    Registry --> Granola
     GitHub -->|Vec<Message>| Core
     Slack -->|Vec<Message>| Core
     Jira -->|Vec<Message>| Core
-    Granola -->|Vec<Message>| Core
     Core --> TermOutput
     Core --> JSONOutput
     Core --> MDOutput
@@ -40,7 +37,7 @@ Everything in Work-OS becomes a `Message`. It is the single unified model passed
 ```
 Message {
   id          — unique key: "source:type:id"
-  source      — "github" | "slack" | "jira" | "granola"
+  source      — "github" | "slack" | "jira"
   message_type — PullRequest | Issue | Review | Message | Ticket | Statistics | MOM
   title
   description
@@ -126,8 +123,7 @@ src/
 └── plugins/
     ├── github/           — GitHub plugin
     ├── slack/            — Slack plugin
-    ├── jira/             — Jira plugin
-    └── granola/          — Granola plugin
+    └── jira/             — Jira plugin
 ```
 
 ## Configuration Storage

@@ -6,7 +6,7 @@ use reqwest::{Client, Url};
 use serde::de::DeserializeOwned;
 use std::fmt::Write;
 
-use crate::core::task::{Task, TaskType};
+use crate::core::message::{Message, MessageType};
 use crate::error::{Result, WorkOsError};
 use crate::models::date_range::DateRange;
 use crate::plugins::slack::model::*;
@@ -45,34 +45,34 @@ impl SlackClient {
         Ok(response.ok)
     }
 
-    pub async fn get_all_tasks(&mut self) -> Result<Vec<Task>> {
-        let mut all_tasks = Vec::new();
+    pub async fn get_all_messages(&mut self) -> Result<Vec<Message>> {
+        let mut all_messages = Vec::new();
 
-        all_tasks.extend(self.get_all_channel_messages().await?);
-        all_tasks.extend(self.get_all_mentions(None).await?);
-        all_tasks.extend(self.get_all_my_messages().await?);
-        all_tasks.extend(self.get_all_dms().await?);
-        all_tasks.extend(self.get_all_group_dms().await?);
-        all_tasks.extend(self.get_all_keywords_messages().await?);
+        all_messages.extend(self.get_all_channel_messages().await?);
+        all_messages.extend(self.get_all_mentions(None).await?);
+        all_messages.extend(self.get_all_my_messages().await?);
+        all_messages.extend(self.get_all_dms().await?);
+        all_messages.extend(self.get_all_group_dms().await?);
+        all_messages.extend(self.get_all_keywords_messages().await?);
 
-        all_tasks.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
-        Ok(all_tasks)
+        all_messages.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        Ok(all_messages)
     }
 
     // ============================
-    // Tasks
+    // Messages
     // ============================
 
-    async fn get_all_dms(&mut self) -> Result<Vec<Task>> {
+    async fn get_all_dms(&mut self) -> Result<Vec<Message>> {
         let channels = self.get_relevant_channels(&["im"]).await?;
-        let mut tasks = Vec::new();
+        let mut messages = Vec::new();
 
         let current_user: SlackResponse<AuthTestData> = self.get("auth.test").await?;
         let current_user_id = current_user.data.map(|d| d.user_id).unwrap_or_default();
 
         for channel in channels {
-            let messages = self.get_channel_messages(&channel.id).await?;
-            if messages.is_empty() {
+            let slack_messages = self.get_channel_messages(&channel.id).await?;
+            if slack_messages.is_empty() {
                 continue;
             }
 
@@ -90,21 +90,21 @@ impl SlackClient {
             let real_name = user.real_name.clone().unwrap_or_else(|| user.name.clone());
 
             let description = self
-                .build_description_from_messages(&channel.id, &messages)
+                .build_description_from_messages(&channel.id, &slack_messages)
                 .await?;
 
             if description.is_empty() {
                 continue;
             }
 
-            let updated_at = latest_message_ts(&messages);
+            let updated_at = latest_message_ts(&slack_messages);
 
             let title = match is_self_dm {
                 true => "Notes to self (Self DM)".to_string(),
                 _ => format!("DM between you and {}", real_name),
             };
 
-            let task = Self::build_task(
+            let message = Self::build_message(
                 &channel.id,
                 title,
                 format!("https://slack.com/archives/{}", channel.id),
@@ -112,27 +112,27 @@ impl SlackClient {
                 updated_at,
             );
 
-            tasks.push(task);
+            messages.push(message);
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 
-    async fn get_all_group_dms(&mut self) -> Result<Vec<Task>> {
+    async fn get_all_group_dms(&mut self) -> Result<Vec<Message>> {
         let channels = self.get_relevant_channels(&["mpim"]).await?;
-        let mut tasks = Vec::new();
+        let mut messages = Vec::new();
 
         for channel in channels {
-            let messages = self.get_channel_messages(&channel.id).await?;
-            if messages.is_empty() {
+            let slack_messages = self.get_channel_messages(&channel.id).await?;
+            if slack_messages.is_empty() {
                 continue;
             }
 
             let description = self
-                .build_description_from_messages(&channel.id, &messages)
+                .build_description_from_messages(&channel.id, &slack_messages)
                 .await?;
 
-            let updated_at = latest_message_ts(&messages);
+            let updated_at = latest_message_ts(&slack_messages);
 
             let title = channel
                 .purpose
@@ -140,7 +140,7 @@ impl SlackClient {
                 .map(|p| p.value.clone())
                 .unwrap_or_else(|| "Unknown Group DM".to_string());
 
-            let task = Self::build_task(
+            let message = Self::build_message(
                 &channel.id,
                 title.clone(),
                 format!("https://slack.com/archives/{}", channel.id),
@@ -148,27 +148,27 @@ impl SlackClient {
                 updated_at,
             );
 
-            tasks.push(task);
+            messages.push(message);
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 
-    async fn get_all_channel_messages(&mut self) -> Result<Vec<Task>> {
-        let mut tasks = Vec::new();
+    async fn get_all_channel_messages(&mut self) -> Result<Vec<Message>> {
+        let mut messages = Vec::new();
         let channels = self.channels.clone();
 
         for channel_id in &channels {
-            let messages = self.get_channel_messages(&channel_id).await?;
-            if messages.is_empty() {
+            let slack_messages = self.get_channel_messages(&channel_id).await?;
+            if slack_messages.is_empty() {
                 continue;
             }
 
             let description = self
-                .build_description_from_message_and_thread(&channel_id, &messages)
+                .build_description_from_message_and_thread(&channel_id, &slack_messages)
                 .await?;
 
-            let updated_at = latest_message_ts(&messages);
+            let updated_at = latest_message_ts(&slack_messages);
 
             let channel_name: String = self
                 .get_channel_info(&channel_id)
@@ -176,7 +176,7 @@ impl SlackClient {
                 .map(|c| c.name)
                 .unwrap_or_else(|| channel_id.clone());
             let channel_title = format!("Activity in {}", &channel_name);
-            let task = Self::build_task(
+            let message = Self::build_message(
                 &channel_id,
                 channel_title,
                 format!("https://slack.com/archives/{}", channel_id),
@@ -184,24 +184,24 @@ impl SlackClient {
                 updated_at,
             );
 
-            tasks.push(task);
+            messages.push(message);
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 
-    async fn get_all_keywords_messages(&mut self) -> Result<Vec<Task>> {
-        let mut all_tasks = Vec::new();
+    async fn get_all_keywords_messages(&mut self) -> Result<Vec<Message>> {
+        let mut all_messages = Vec::new();
         let keywords = self.keywords.clone();
         for keyword in &keywords {
             let user_group_tasks = self.get_all_mentions(Some(&keyword)).await?;
-            all_tasks.extend(user_group_tasks);
+            all_messages.extend(user_group_tasks);
         }
-        Ok(all_tasks)
+        Ok(all_messages)
     }
 
-    async fn get_all_mentions(&mut self, user_query: Option<&str>) -> Result<Vec<Task>> {
-        let mut tasks = Vec::new();
+    async fn get_all_mentions(&mut self, user_query: Option<&str>) -> Result<Vec<Message>> {
+        let mut messages = Vec::new();
 
         let search_query: String = match user_query {
             Some(q) => q.to_string(),
@@ -283,7 +283,7 @@ impl SlackClient {
                 _ => String::new(),
             };
 
-            let task = Self::build_task(
+            let message = Self::build_message(
                 &result.channel.id,
                 format!("Mention in {}{}", channel_name, query_name),
                 result.permalink.clone(),
@@ -291,14 +291,14 @@ impl SlackClient {
                 updated_at,
             );
 
-            tasks.push(task);
+            messages.push(message);
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 
-    async fn get_all_my_messages(&mut self) -> Result<Vec<Task>> {
-        let mut tasks = Vec::new();
+    async fn get_all_my_messages(&mut self) -> Result<Vec<Message>> {
+        let mut messages = Vec::new();
 
         let current_user: SlackResponse<AuthTestData> = self.get("auth.test").await?;
         let user_id = current_user
@@ -350,7 +350,7 @@ impl SlackClient {
             let formatted_text = self.replace_user_id_with_handle(&result.text).await?;
             let description = format!("{}: {}", author.name, formatted_text);
 
-            let task = Self::build_task(
+            let message = Self::build_message(
                 &result.channel.id,
                 format!("My message in #{}", result.channel.name),
                 result.permalink.clone(),
@@ -358,10 +358,10 @@ impl SlackClient {
                 updated_at,
             );
 
-            tasks.push(task);
+            messages.push(message);
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 
     // ============================
@@ -732,14 +732,14 @@ impl SlackClient {
         Ok(description)
     }
 
-    fn build_task(
+    fn build_message(
         channel_id: &str,
         title: String,
         url: String,
         description: String,
         updated_at: DateTime<Utc>,
-    ) -> Task {
-        Task::new("slack", TaskType::Message, channel_id, title, url)
+    ) -> Message {
+        Message::new("slack", MessageType::Message, channel_id, title, url)
             .with_date(updated_at, updated_at)
             .with_description(description)
     }

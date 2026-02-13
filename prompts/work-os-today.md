@@ -21,8 +21,6 @@ $WORK_OS_BASE_DIR/raw/{TODAY-DATE}/sync-*.md
 - Date folders: `raw/YYYY-MM-DD/`
 - Sync files: `sync-HHMM.md` (24-hour format)
 - Example: `raw/2026-02-08/sync-0943.md`, `raw/2026-02-08/sync-1430.md`
-- Granola MOMs: `raw/YYYY-MM-DD/moms/meeting-name/` (processed, not read directly)
-
 There may be multiple sync files for today (different timestamps) — read all `sync-*.md` files in today's folder. Do NOT read files from previous date folders.
 
 Each file contains semi-structured activity logs and task information from sources such as Slack, Jira and GitHub.
@@ -355,7 +353,6 @@ For example, if today is 2026-01-23, read files like:
 **IMPORTANT:**
 - Read ALL `sync-*.md` files in today's date folder
 - Do NOT read files from previous date folders (e.g., `raw/2026-01-22/`)
-- Granola MOMs are now in `raw/YYYY-MM-DD/moms/` but are NOT read directly (already processed in sync files)
 
 ### Step 4: Generate Brief with Carryovers
 

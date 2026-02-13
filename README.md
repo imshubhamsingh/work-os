@@ -12,7 +12,6 @@ Work-OS is a Rust CLI that pulls together your:
 - 💬 Slack messages, mentions, and DMs
 - 🔀 GitHub PRs, issues, and reviews
 - 🎫 Jira tickets and sprints
-- 🍥 Granola meeting notes (transcripts & summaries) - highly experimental and macos only
 
 ...and gives you a clean, unified view. One command, all your tasks. Simple.
 
@@ -82,14 +81,11 @@ work-os config set jira domain company.atlassian.net
 work-os config set jira email your-email@company.com
 work-os config set jira token YOUR_JIRA_API_TOKEN
 
-# Granola (highly experimental, macos only) - no configuration needed!
-# Just install Granola and it will automatically read from your local cache
-
 # Get your stuff
 work-os sync
 ```
 
-That's it! See the plugin setup guides: [GitHub](docs/plugins/github.md) · [Slack](docs/plugins/slack.md) · [Jira](docs/plugins/jira.md) · [Granola](docs/plugins/granola.md)
+That's it! See the plugin setup guides: [GitHub](docs/plugins/github.md) · [Slack](docs/plugins/slack.md) · [Jira](docs/plugins/jira.md)
 
 ## 💡 Cool Things You Can Do
 
@@ -105,9 +101,6 @@ work-os sync --plugins slack
 
 # Check your Jira tickets and sprint status
 work-os sync --plugins jira
-
-# Sync meeting notes from Granola
-work-os sync --plugins granola
 
 # GitHub + Jira only (the developer combo)
 work-os sync --plugins github,jira
@@ -127,7 +120,7 @@ work-os stats --type ai-code --mode weekly
 Here's where it gets interesting. After `work-os sync` generates the raw markdown, I use **Claude Code with custom templates** to process it into actionable daily briefs.
 
 **My complete stack:**
-1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, Jira, and Granola
+1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, and Jira
 2. **Claude Code** (AI) → Processes raw data with custom templates
 3. **Obsidian** (Markdown) → Stores and organizes my daily briefs, weekly reports and follow-ups
 
@@ -184,7 +177,7 @@ This helps you understand your AI collaboration patterns and track productivity 
 
 Built with Rust because... well, why not? 🦀
 
-- **Plugins**: Each platform (GitHub, Slack, Jira, Granola) is a plugin
+- **Plugins**: Each platform (GitHub, Slack, Jira) is a plugin
 - **Messages**: Everything becomes a unified `Message` model
 - **Outputs**: Terminal, JSON, or Markdown - pick your flavor
 - **Smart Syncing**: Only fetches what you need based on date ranges
@@ -195,7 +188,7 @@ The architecture is clean and modular - adding new platforms is straightforward.
 
 Work-OS doesn't just dump data - it makes it look good:
 - Color-coded priorities
-- Source icons (GitHub/Slack/Jira/Granola)
+- Source icons (GitHub/Slack/Jira)
 - Author info and timestamps
 - Clickable URLs
 - Clean formatting
@@ -220,7 +213,6 @@ Work-OS doesn't just dump data - it makes it look good:
 | [GitHub Plugin](docs/plugins/github.md) | Setup, AI stats, token scopes |
 | [Slack Plugin](docs/plugins/slack.md) | Setup, OAuth scopes, what gets fetched |
 | [Jira Plugin](docs/plugins/jira.md) | Setup, JQL filters, priority mapping |
-| [Granola Plugin](docs/plugins/granola.md) | Setup, cache location, limitations |
 | [Building a Plugin](docs/plugins/building-a-plugin.md) | How to add a new integration |
 
 ## 🔮 Planned Integrations
@@ -275,3 +267,7 @@ MIT - do whatever you want with it.
 ---
 
 *Built with ☕ and frustration from too many browser tabs*
+
+## ⚠️ A Note on Workplace Use
+
+This tool connects to platforms like Slack, GitHub, and Jira, which means it interacts with data owned by your organization. If you plan to use this at work, **get explicit permission from your team or company before setting it up**. Even if the tool only reads data you already have access to, most organizations have policies around third-party tools, API token usage, and data handling. A quick conversation with your manager or security team goes a long way. Don't assume it's fine just because it's technically possible.

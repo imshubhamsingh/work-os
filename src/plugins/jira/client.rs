@@ -6,7 +6,7 @@ use regex::Regex;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 
-use crate::core::task::{Person, PersonRole, Priority, Task, TaskType};
+use crate::core::message::{Person, PersonRole, Priority, Message, MessageType};
 use crate::error::{Result, WorkOsError};
 use crate::models::date_range::DateRange;
 use crate::plugins::jira::config::{JiraConfig, JqlFilter};
@@ -44,7 +44,7 @@ impl JiraClient {
         Ok(true)
     }
 
-    pub async fn get_all_tasks(&mut self) -> Result<Vec<Task>> {
+    pub async fn get_all_messages(&mut self) -> Result<Vec<Message>> {
         if self.filters.is_empty() {
             println!("No Jira filters configured");
             return Ok(Vec::new());
@@ -69,30 +69,30 @@ impl JiraClient {
             })
             .collect();
 
-        let mut all_tasks = Vec::new();
+        let mut all_messages = Vec::new();
 
         for (jql_with_date, priority, name) in filters {
             match self.search_issues(&jql_with_date, priority).await {
-                Ok(tasks) => all_tasks.extend(tasks),
+                Ok(messages) => all_messages.extend(messages),
                 Err(e) => println!("Filter '{}' error: {}", name, e),
             }
         }
 
-        all_tasks = deduplicate_tasks(all_tasks);
-        all_tasks.sort_by(|a, b| {
+        all_messages = deduplicate_messages(all_messages);
+        all_messages.sort_by(|a, b| {
             a.priority
                 .cmp(&b.priority)
                 .then_with(|| b.updated_at.cmp(&a.updated_at))
         });
 
-        Ok(all_tasks)
+        Ok(all_messages)
     }
 
     // ============================
     // Jira API
     // ============================
 
-    async fn search_issues(&mut self, jql: &str, default_priority: Priority) -> Result<Vec<Task>> {
+    async fn search_issues(&mut self, jql: &str, default_priority: Priority) -> Result<Vec<Message>> {
         let fields = vec![
             "summary",
             "status",
@@ -127,20 +127,20 @@ impl JiraClient {
             )
             .await?;
 
-        let mut tasks: Vec<Task> = data
+        let mut messages: Vec<Message> = data
             .issues
             .into_iter()
-            .map(|issue| issue_to_task(issue, &self.domain, default_priority.clone()))
+            .map(|issue| issue_to_message(issue, &self.domain, default_priority.clone()))
             .collect();
 
         // Replace user mentions in descriptions
-        for task in &mut tasks {
-            if let Some(ref desc) = task.description {
-                task.description = Some(self.replace_user_mentions(desc).await?);
+        for message in &mut messages {
+            if let Some(ref desc) = message.description {
+                message.description = Some(self.replace_user_mentions(desc).await?);
             }
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 
     async fn get<T: DeserializeOwned>(
@@ -225,13 +225,13 @@ impl JiraClient {
 // Helpers
 // ============================
 
-fn issue_to_task(issue: JiraIssue, domain: &str, default_priority: Priority) -> Task {
+fn issue_to_message(issue: JiraIssue, domain: &str, default_priority: Priority) -> Message {
     let url = issue.url(domain);
     let description = build_description(&issue);
 
-    let task_type = match issue.fields.issue_type.name.to_lowercase().as_str() {
-        "bug" => TaskType::Issue,
-        _ => TaskType::Ticket,
+    let message_type = match issue.fields.issue_type.name.to_lowercase().as_str() {
+        "bug" => MessageType::Issue,
+        _ => MessageType::Ticket,
     };
 
     let priority = issue
@@ -249,21 +249,21 @@ fn issue_to_task(issue: JiraIssue, domain: &str, default_priority: Priority) -> 
 
     let title = format!("[{}] {}", issue.key, issue.fields.summary);
 
-    let mut task = Task::new("jira", task_type, &issue.key, title, url)
+    let mut message = Message::new("jira", message_type, &issue.key, title, url)
         .with_description(description)
         .with_priority(priority)
         .with_status(status)
         .with_date(created_at, updated_at);
 
     if let Some(assignee) = issue.fields.assignee {
-        task = task.with_person(Person {
+        message = message.with_person(Person {
             name: assignee.display_name,
             username: assignee.account_id,
             role: PersonRole::Assignee,
         });
     }
 
-    task
+    message
 }
 
 fn build_description(issue: &JiraIssue) -> String {
@@ -302,10 +302,10 @@ fn build_description(issue: &JiraIssue) -> String {
         lines.push(format!("Sprint: {}", sprint.display()));
     }
 
-    // parent task
+    // parent message
     if let Some((parent_task_key, parent_task_name)) = issue.fields.extract_parent_task() {
         lines.push(format!(
-            "Parent task: {} - {}",
+            "Parent message: {} - {}",
             parent_task_key, parent_task_name
         ));
     }
@@ -416,9 +416,9 @@ fn parse_jira_datetime(s: &str) -> Option<DateTime<FixedOffset>> {
     DateTime::parse_from_rfc3339(&normalized).ok()
 }
 
-fn deduplicate_tasks(tasks: Vec<Task>) -> Vec<Task> {
+fn deduplicate_messages(messages: Vec<Message>) -> Vec<Message> {
     let mut seen = HashSet::new();
-    tasks
+    messages
         .into_iter()
         .filter(|t| seen.insert(t.id.clone()))
         .collect()

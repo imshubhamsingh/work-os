@@ -11,16 +11,12 @@ Everything lands in a single folder in my Obsidian vault:
 ├── README.md                   ← start here: system overview and quick reference
 ├── raw/                        ← raw sync output, one folder per day
 │   └── 2026-02-11/
-│       ├── sync-0915.md        ← GitHub + Slack + Jira dump
-│       └── moms/               ← Granola meeting notes, one folder per meeting
-│           └── Meeting-Name/
-│               ├── summary.md
-│               └── transcript.md
+│       └── sync-0915.md        ← GitHub + Slack + Jira dump
 ├── archive/                    ← processed daily briefs, kept forever
 │   ├── 2026-02-10.md
 │   └── weekly/
 │       └── 2026-02-02_2026-02-07.md
-├── meetings/                   ← AI/hand-written meeting notes (separate from Granola)
+├── meetings/                   ← AI/hand-written meeting notes
 ├── follow-ups.md               ← persistent ledger of items waiting on others
 └── today.md                    ← current day's brief (gets archived at end of day)
 ```
@@ -35,7 +31,7 @@ Everything lands in a single folder in my Obsidian vault:
 work-os sync --mode since-last-run --markdown
 ```
 
-This pulls GitHub PRs/reviews, Slack DMs/mentions/channels, Jira tickets, and any Granola meeting notes from since the last run. Dumps everything into `raw/{today}/sync-HHMM.md`.
+This pulls GitHub PRs/reviews, Slack DMs/mentions/channels, and Jira tickets from since the last run. Dumps everything into `raw/{today}/sync-HHMM.md`.
 
 **Step 2 — Generate the daily brief**
 
@@ -70,18 +66,6 @@ That's it. Usually done in under 5 minutes.
 | **Generation Cost** | Token cost of the brief, tracked out of curiosity |
 
 The "End of Day Reflection" is the only section I ~~write manually~~ use wispr flow. Everything else is generated from data.
-
----
-
-## Meeting notes (Granola)
-
-Granola records every meeting on my Mac and writes a summary + transcript into the local cache. Work-OS reads those and includes them in the raw sync output.
-
-They show up in two places:
-- As `moms/{meeting-name}/summary.md` and `transcript.md` under `raw/{date}/`
-- Inline in `sync-HHMM.md` as `[GRANOLA]` items
-
-The daily brief then pulls the relevant summaries into the **Context** section so I don't have to re-read transcripts.
 
 ---
 

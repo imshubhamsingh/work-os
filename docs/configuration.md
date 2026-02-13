@@ -54,8 +54,6 @@ name = "Needs Review"
 jql = "project = HUBPE AND assignee = currentUser() AND statusCategory != Done"
 priority = "medium"
 
-[plugins.granola]
-enabled = true
 ```
 
 ---
@@ -131,16 +129,6 @@ assignee = currentUser() AND status = "In Review"
 # Blocked tickets
 assignee = currentUser() AND labels = blocked
 ```
-
----
-
-## `[plugins.granola]`
-
-| Key | Required | Description |
-|-----|----------|-------------|
-| `enabled` | ✅ | `true` / `false` |
-
-No other configuration needed — Granola reads from a fixed local cache path.
 
 ---
 

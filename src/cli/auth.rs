@@ -44,8 +44,11 @@ pub async fn test_plugin_auth(plugin_id: &str, plugin_config: Option<&PluginConf
         }
     };
 
+    let config = WorkOsConfig::load()?;
+    let output_path = config.output.base_path.join(&config.output.markdown_path);
+
     let mut test_plugin = create_test_plugin_by_id(plugin_id)?;
-    test_plugin.configure_from_values(plugin_config_values)?;
+    test_plugin.configure_from_values(plugin_config_values, &output_path)?;
 
     match test_plugin.test_connection().await {
         Ok(true) => {

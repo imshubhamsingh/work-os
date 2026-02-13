@@ -4,11 +4,12 @@ pub mod ai_stats;
 pub mod commit_analyzer;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 pub use crate::core::plugin::{ConfigField, Plugin, PluginMetadata};
 pub use crate::error::Result;
 use crate::{core::plugin::ConfigFieldType, plugins::github::model::GitHubConfig};
-use crate::{core::task::Task, error::WorkOsError};
+use crate::{core::message::Message, error::WorkOsError};
 use async_trait::async_trait;
 pub use client::GithubClient;
 use toml::Value;
@@ -132,9 +133,9 @@ impl Plugin for GithubPlugin {
         }
     }
 
-    async fn fetch_tasks(&self) -> Result<Vec<Task>> {
+    async fn fetch_messages(&self) -> Result<Vec<Message>> {
         match &self.client {
-            Some(client) => client.get_all_tasks().await,
+            Some(client) => client.get_all_messages().await,
             None => Ok(Vec::new()),
         }
     }
