@@ -6,7 +6,7 @@ use crate::models::date_range::DateRange;
 use crate::plugins::github::ai_stats::{AIUsageStats, PrAIStats};
 use crate::plugins::github::commit_analyzer::CommitMessageAnalyzer;
 use crate::plugins::github::model::*;
-use chrono::{Local, TimeDelta};
+use chrono::{DateTime, Local, TimeDelta, Utc};
 use octocrab::Octocrab;
 use std::fmt::Write;
 
@@ -14,7 +14,6 @@ pub struct GithubClient {
     octocrab: Octocrab,
     username: String,
     include_orgs: Vec<String>,
-    include_repos: Vec<String>,
     bots: Vec<String>,
 }
 
@@ -33,7 +32,6 @@ impl GithubClient {
             octocrab,
             username: config.username.clone(),
             include_orgs: config.include_orgs.clone(),
-            include_repos: config.include_repos.clone(),
             bots: config.bots.clone(),
         })
     }
@@ -50,10 +48,7 @@ impl GithubClient {
     }
 
     pub async fn get_all_messages(&self) -> Result<Vec<Message>> {
-        let mut all_messages = Vec::new();
-
-        all_messages.extend(self.get_involved_prs().await?);
-        all_messages.extend(self.get_authored_prs().await?);
+        let all_messages = self.get_involved_prs().await?;
 
         let mut all_messages = Self::deduplicate_messages(all_messages);
 
@@ -72,12 +67,7 @@ impl GithubClient {
     // ============================
 
     async fn get_involved_prs(&self) -> Result<Vec<Message>> {
-        let query = self.build_search_query(SearchType::Involved);
-        self.get_prs(&query).await
-    }
-
-    async fn get_authored_prs(&self) -> Result<Vec<Message>> {
-        let query = self.build_search_query(SearchType::Author);
+        let query = self.build_pr_query(SearchType::Involved);
         self.get_prs(&query).await
     }
 
@@ -91,7 +81,7 @@ impl GithubClient {
                 continue;
             };
 
-            let pr_details = self.get_pr_details(&owner, &repo, pr.number).await?;
+            let pr_details = self.get_pr_details(&owner, &repo, pr.number, pr.created_at).await?;
 
             let description = Self::build_pr_description(&pr_details);
 
@@ -316,7 +306,7 @@ impl GithubClient {
         Ok(list.items)
     }
 
-    async fn get_pr_details(&self, owner: &str, repo: &str, pr_number: u64) -> Result<PrDetails> {
+    async fn get_pr_details(&self, owner: &str, repo: &str, pr_number: u64, pr_created_at: DateTime<Utc>) -> Result<PrDetails> {
         let mut date_range = DateRange::get().clone();
 
         let delta = date_range.end.date_naive() - date_range.start.date_naive();
@@ -325,6 +315,18 @@ impl GithubClient {
             date_range.end = date_range.end + TimeDelta::days(1);
         }
 
+        let body = if date_range.contains(pr_created_at) {
+            let pulls = self.octocrab.pulls(owner, repo);
+            pulls
+                .get(pr_number)
+                .await
+                .ok()
+                .and_then(|p| p.body)
+                .filter(|b| !b.trim().is_empty())
+        } else {
+            None
+        };
+
         let (reviews, comments, review_comments) = tokio::join!(
             self.get_reviews(owner, repo, pr_number, &date_range),
             self.get_comments(owner, repo, pr_number, &date_range),
@@ -332,7 +334,7 @@ impl GithubClient {
         );
 
         Ok(PrDetails {
-            body: None,
+            body,
             reviews: reviews.unwrap_or_default(),
             comments: comments.unwrap_or_default(),
             review_comments: review_comments.unwrap_or_default(),
@@ -472,60 +474,34 @@ impl GithubClient {
     // ============================
 
     fn build_pr_query(&self, search_type: SearchType) -> String {
+        let date_range = DateRange::get();
+        let since = date_range.start.format("%Y-%m-%d");
+
         let org_filter = if !self.include_orgs.is_empty() {
-            self.include_orgs
-                .iter()
-                .map(|org| format!("org:{}", org))
-                .collect::<Vec<_>>()
-                .join(" ")
+            format!(
+                " {}",
+                self.include_orgs
+                    .iter()
+                    .map(|org| format!("org:{}", org))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
         } else {
             String::new()
         };
 
-        if org_filter.is_empty() {
-            format!("is:pr {}:{}", search_type, self.username)
-        } else {
-            format!("is:pr {}:{} {}", search_type, self.username, org_filter)
-        }
-    }
-
-    fn build_search_query(&self, search_type: SearchType) -> String {
-        let repo_filter = self.build_repo_filter();
-
-        if repo_filter.is_empty() {
-            format!("is:pr is:open {}:{}", search_type, self.username)
-        } else {
-            format!(
-                "is:pr is:open {}:{} {}",
-                search_type, self.username, repo_filter
-            )
-        }
-    }
-
-    fn build_repo_filter(&self) -> String {
-        if !self.include_repos.is_empty() {
-            return self
-                .include_repos
-                .iter()
-                .map(|repo| format!("repo:{}", repo))
-                .collect::<Vec<_>>()
-                .join(" ");
-        }
-
-        if !self.include_orgs.is_empty() {
-            return self
-                .include_orgs
-                .iter()
-                .map(|org| format!("org:{}", org))
-                .collect::<Vec<_>>()
-                .join(" ");
-        }
-
-        String::new()
+        format!(
+            "is:pr {}:{} updated:>={}{}",
+            search_type, self.username, since, org_filter
+        )
     }
 
     fn build_pr_description(details: &PrDetails) -> String {
         let mut desc = String::new();
+
+        if let Some(body) = &details.body {
+            let _ = writeln!(desc, "Description:\n{}\n", body);
+        }
 
         if !details.reviews.is_empty() {
             let _ = writeln!(desc, "Reviews:");
