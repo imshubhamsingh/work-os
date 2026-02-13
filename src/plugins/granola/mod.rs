@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use toml::Value;
 
 use crate::core::plugin::{ConfigField, Plugin, PluginMetadata};
-use crate::core::task::Task;
+use crate::core::message::Message;
 use crate::error::Result;
 use crate::plugins::granola::{client::GranolaClient, config::GranolaConfig};
 
@@ -82,11 +82,11 @@ impl Plugin for GranolaPlugin {
         }
     }
 
-    async fn fetch_tasks(&self) -> Result<Vec<Task>> {
+    async fn fetch_messages(&self) -> Result<Vec<Message>> {
         match &self.client {
             Some(_client) => {
                 let mut client_clone = GranolaClient::new(self.config.as_ref().unwrap())?;
-                client_clone.get_all_tasks().await
+                client_clone.get_all_messages().await
             }
             None => Ok(Vec::new()),
         }

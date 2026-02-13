@@ -1,5 +1,5 @@
 use crate::error::WorkOsError;
-use crate::{core::task::Priority, error::Result};
+use crate::{core::message::Priority, error::Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

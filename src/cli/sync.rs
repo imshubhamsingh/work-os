@@ -1,7 +1,7 @@
-use crate::core::task::{PersonRole, Task};
+use crate::core::message::{PersonRole, Message};
 use crate::core::registry::PluginRegistry;
 use crate::error::{Result, WorkOsError};
-use crate::generators::markdown::{get_task_icon, MarkdownGenerator};
+use crate::generators::markdown::{get_message_icon, MarkdownGenerator};
 use crate::models::config::WorkOsConfig;
 use crate::models::date_range::DateRange;
 use crate::models::state::WorkOsState;
@@ -59,31 +59,31 @@ pub async fn run(
 
     println!();
 
-    println!("{}", "Fetching tasks...".dimmed());
+    println!("{}", "Fetching messages...".dimmed());
 
-    let all_tasks = match plugin_filter {
-        Some(plugins) => registry.fetch_tasks_from(&plugins).await?,
-        None => registry.fetch_tasks_from(&registry.list_ids()).await?,
+    let all_messages = match plugin_filter {
+        Some(plugins) => registry.fetch_messages_from(&plugins).await?,
+        None => registry.fetch_messages_from(&registry.list_ids()).await?,
     };
 
-    if all_tasks.is_empty() {
-        println!("\n{}", "No tasks found!".yellow());
+    if all_messages.is_empty() {
+        println!("\n{}", "No messages found!".yellow());
         return Ok(());
     }
 
     if json_output {
-        let json = serde_json::to_string_pretty(&all_tasks)
+        let json = serde_json::to_string_pretty(&all_messages)
             .map_err(|e| WorkOsError::Config(e.to_string()))?;
         println!("{}", json);
     } else {
-        print_tasks(&all_tasks);
+        print_messages(&all_messages);
     }
 
     if markdown {
         let base_path = config.output.base_path.clone();
         let markdown_path = config.output.markdown_path.clone();
         let markdown_generator = MarkdownGenerator::new(base_path.join(markdown_path));
-        let output_path = markdown_generator.generate(&all_tasks);
+        let output_path = markdown_generator.generate(&all_messages);
         println!(
             "{} Markdown generated at: {}",
             "✓".green(),
@@ -96,25 +96,25 @@ pub async fn run(
     Ok(())
 }
 
-fn print_tasks(tasks: &[Task]) {
+fn print_messages(messages: &[Message]) {
     println!("\n{}", "═".repeat(60).dimmed());
     println!("{}", " TASKS ".bold().on_blue().white());
     println!("{}", "═".repeat(60).dimmed());
 
-    tasks.iter().for_each(print_task);
+    messages.iter().for_each(print_message);
 
     println!("\n{}", "═".repeat(60).dimmed());
-    println!("Total tasks: {}", tasks.len().to_string().bold());
+    println!("Total messages: {}", messages.len().to_string().bold());
 }
 
-fn print_task(task: &Task) {
-    let icon = get_task_icon(task);
+fn print_message(message: &Message) {
+    let icon = get_message_icon(message);
 
-    let source = format!("[{}]", task.source.to_uppercase()).dimmed();
+    let source = format!("[{}]", message.source.to_uppercase()).dimmed();
 
-    println!("{} {} {}", icon, source, task.title.bold());
+    println!("{} {} {}", icon, source, message.title.bold());
 
-    if let Some(description) = &task.description {
+    if let Some(description) = &message.description {
         for line in description.lines() {
             println!("           {}", line.dimmed());
         }
@@ -122,15 +122,15 @@ fn print_task(task: &Task) {
 
     let mut metadata: Vec<String> = Vec::new();
 
-    if let Some(author) = task.people.iter().find(|p| p.role == PersonRole::Author) {
+    if let Some(author) = message.people.iter().find(|p| p.role == PersonRole::Author) {
         metadata.push(format!("by @{}", author.username).dimmed().to_string());
     }
 
-    metadata.push(Task::format_absolute_time(task.created_at).dimmed().to_string());
+    metadata.push(Message::format_absolute_time(message.created_at).dimmed().to_string());
 
     if !metadata.is_empty() {
         println!("     └─ {}", metadata.join(" · "));
     }
 
-    println!("     {}", task.url.dimmed());
+    println!("     {}", message.url.dimmed());
 }

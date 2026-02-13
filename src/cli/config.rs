@@ -76,7 +76,6 @@ async fn configure_plugin_interactive(
     test_plugin_auth(
         &meta.id,
         Some(&plugin_config.clone()),
-        &config.output.base_path,
     )
     .await
 }

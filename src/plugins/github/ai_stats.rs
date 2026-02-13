@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-use crate::core::task::{Task, TaskType};
+use crate::core::message::{Message, MessageType};
 use crate::plugins::github::commit_analyzer::{AISignal, CommitAnalysis};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +58,7 @@ impl AIUsageStats {
         };
     }
 
-    pub fn to_task(&self) -> Task {
+    pub fn to_message(&self) -> Message {
         let title = format!(
             "AI Usage: {:.0}% ({} AI / {} Human LOC)",
             self.ai_percentage, self.ai_loc, self.human_loc
@@ -66,9 +66,9 @@ impl AIUsageStats {
 
         let description = self.to_description();
 
-        Task::new(
+        Message::new(
             "github",
-            TaskType::Statistics,
+            MessageType::Statistics,
             &format!("ai-usage-{}-to-{}", self.start_date, self.end_date),
             title,
             String::new(), // No URL for stats

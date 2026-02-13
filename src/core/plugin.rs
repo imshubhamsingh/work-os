@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::core::task::Task;
+use crate::core::message::Message;
 use crate::error::Result;
 use async_trait::async_trait;
 use toml::Value;
@@ -113,8 +113,8 @@ pub trait Plugin: Send + Sync {
     fn metadata(&self) -> PluginMetadata;
     fn is_configured(&self) -> bool;
     fn config_schema(&self) -> Vec<ConfigField>;
-    fn configure_from_values(&mut self, values: &HashMap<String, Value>, base_path: &PathBuf) -> Result<()>;
+    fn configure_from_values(&mut self, values: &HashMap<String, Value>, output_path: &PathBuf) -> Result<()>;
     async fn test_connection(&self) -> Result<bool>;
-    async fn fetch_tasks(&self) -> Result<Vec<Task>>;
+    async fn fetch_messages(&self) -> Result<Vec<Message>>;
     fn as_any(&self) -> &dyn Any;
 }

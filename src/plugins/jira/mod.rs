@@ -5,7 +5,7 @@ mod model;
 use crate::core::plugin::{
     ConfigField, ConfigFieldType, NestedFieldSchema, Plugin, PluginMetadata,
 };
-use crate::core::task::Task;
+use crate::core::message::Message;
 use crate::error::{Result, WorkOsError};
 use async_trait::async_trait;
 use client::JiraClient;
@@ -90,7 +90,7 @@ impl Plugin for JiraPlugin {
                     NestedFieldSchema {
                         name: "name",
                         label: "Filter Name",
-                        help: "Display name for this filter (e.g., 'My Active Tasks')",
+                        help: "Display name for this filter (e.g., 'My Active Messages')",
                         field_type: ConfigFieldType::String,
                         required: true,
                         default: None,
@@ -168,11 +168,11 @@ impl Plugin for JiraPlugin {
         }
     }
 
-    async fn fetch_tasks(&self) -> Result<Vec<Task>> {
+    async fn fetch_messages(&self) -> Result<Vec<Message>> {
         match &self.client {
             Some(_client) => {
                 let mut client_clone = JiraClient::new(self.config.as_ref().unwrap())?;
-                client_clone.get_all_tasks().await
+                client_clone.get_all_messages().await
             }
             None => Ok(Vec::new()),
         }

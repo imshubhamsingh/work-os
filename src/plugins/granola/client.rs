@@ -1,4 +1,4 @@
-use crate::core::task::{Task, TaskType};
+use crate::core::message::{Message, MessageType};
 use crate::error::{Result, WorkOsError};
 use crate::models::date_range::DateRange;
 use crate::plugins::granola::cache_reader::CacheReader;
@@ -34,7 +34,7 @@ impl GranolaClient {
         Ok(true)
     }
 
-    pub async fn get_all_tasks(&mut self) -> Result<Vec<Task>> {
+    pub async fn get_all_messages(&mut self) -> Result<Vec<Message>> {
         let date_range = DateRange::get();
         let documents = self.cache_reader.get_documents()?;
 
@@ -45,7 +45,7 @@ impl GranolaClient {
             })
             .collect();
 
-        let mut tasks = Vec::new();
+        let mut messages = Vec::new();
 
         for doc in filtered_docs {
             let doc_id = doc.id.as_deref().unwrap_or("unknown");
@@ -60,9 +60,9 @@ impl GranolaClient {
             {
                 Ok((folder_path, granola_summary)) => {
                     println!("  ✓ Wrote MOM folder: {}", folder_path.display());
-                    let task = Task::new(
+                    let message = Message::new(
                         "granola",
-                        TaskType::MOM,
+                        MessageType::MOM,
                         doc_id,
                         doc_title.to_string(),
                         format!("file://{}", folder_path.display()),
@@ -70,7 +70,7 @@ impl GranolaClient {
                     .with_date(doc.created_at, doc.updated_at)
                     .with_description(granola_summary);
 
-                    tasks.push(task);
+                    messages.push(message);
                 }
                 Err(e) => {
                     println!("  ✗ Failed to write MOM folder for '{}': {}", doc_title, e);
@@ -78,6 +78,6 @@ impl GranolaClient {
             }
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 }

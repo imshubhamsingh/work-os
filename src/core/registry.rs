@@ -1,5 +1,5 @@
 use crate::core::plugin::Plugin;
-use crate::core::task::Task;
+use crate::core::message::Message;
 use crate::error::{Result, WorkOsError};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -32,19 +32,19 @@ impl PluginRegistry {
         self.plugins.keys().cloned().collect()
     }
 
-    pub async fn fetch_tasks_from(&self, plugin_ids: &[String]) -> Result<Vec<Task>> {
-        let mut tasks = Vec::new();
+    pub async fn fetch_messages_from(&self, plugin_ids: &[String]) -> Result<Vec<Message>> {
+        let mut messages = Vec::new();
         for plugin_id in plugin_ids {
             if let Some(plugin) = self.get(plugin_id) {
-                match plugin.fetch_tasks().await {
-                    Ok(task) => tasks.extend(task),
+                match plugin.fetch_messages().await {
+                    Ok(message) => messages.extend(message),
                     Err(e) => {
                         eprintln!("Error fetching from {}: {}", plugin.metadata().name, e);
                     }
                 }
             }
         }
-        Ok(tasks)
+        Ok(messages)
     }
 
     pub fn get_client(&self, plugin_name: &str) -> Result<Arc<dyn Plugin>> {

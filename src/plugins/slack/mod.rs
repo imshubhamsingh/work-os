@@ -8,8 +8,8 @@ use async_trait::async_trait;
 pub use client::SlackClient;
 use toml::Value;
 
+use crate::core::message::Message;
 use crate::core::plugin::{ConfigField, ConfigFieldType, Plugin, PluginMetadata};
-use crate::core::task::Task;
 use crate::error::{Result, WorkOsError};
 use crate::plugins::slack::model::SlackConfig;
 
@@ -86,7 +86,11 @@ impl Plugin for SlackPlugin {
         ]
     }
 
-    fn configure_from_values(&mut self, values: &HashMap<String, Value>, _output_path: &PathBuf) -> Result<()> {
+    fn configure_from_values(
+        &mut self,
+        values: &HashMap<String, Value>,
+        _: &PathBuf,
+    ) -> Result<()> {
         let token = values
             .get("token")
             .and_then(|v| v.as_str())
@@ -112,11 +116,11 @@ impl Plugin for SlackPlugin {
         }
     }
 
-    async fn fetch_tasks(&self) -> Result<Vec<Task>> {
+    async fn fetch_messages(&self) -> Result<Vec<Message>> {
         match &self.client {
             Some(_client) => {
                 let mut client_clone = SlackClient::new(self.config.as_ref().unwrap())?;
-                client_clone.get_all_tasks().await
+                client_clone.get_all_messages().await
             }
             None => Ok(Vec::new()),
         }

@@ -1,5 +1,5 @@
-use crate::core::task::{
-    GitHubMetadata, Person, PersonRole, Priority, Task, TaskMetadata, TaskType,
+use crate::core::message::{
+    GitHubMetadata, Message, MessageMetadata, MessageType, Person, PersonRole, Priority,
 };
 use crate::error::{Result, WorkOsError};
 use crate::models::date_range::DateRange;
@@ -24,7 +24,6 @@ impl GithubClient {
     // ============================
 
     pub fn new(config: &GitHubConfig) -> Result<Self> {
-        println!("{}", config.token.clone());
         let octocrab = Octocrab::builder()
             .personal_token(config.token.clone())
             .build()
@@ -50,40 +49,40 @@ impl GithubClient {
         Ok(user.login == self.username)
     }
 
-    pub async fn get_all_tasks(&self) -> Result<Vec<Task>> {
-        let mut all_tasks = Vec::new();
+    pub async fn get_all_messages(&self) -> Result<Vec<Message>> {
+        let mut all_messages = Vec::new();
 
-        all_tasks.extend(self.get_involved_prs().await?);
-        all_tasks.extend(self.get_authored_prs().await?);
+        all_messages.extend(self.get_involved_prs().await?);
+        all_messages.extend(self.get_authored_prs().await?);
 
-        let mut all_tasks = Self::deduplicate_tasks(all_tasks);
+        let mut all_messages = Self::deduplicate_messages(all_messages);
 
         match self.get_ai_stats().await {
-            Ok(stats_task) => all_tasks.push(stats_task),
+            Ok(stats_task) => all_messages.push(stats_task),
             Err(e) => println!("Warning: Failed to generate AI stats: {}", e),
         }
 
-        all_tasks.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        all_messages.sort_by(|a, b| a.created_at.cmp(&b.created_at));
 
-        Ok(all_tasks)
+        Ok(all_messages)
     }
 
     // ============================
     // PR Fetching
     // ============================
 
-    async fn get_involved_prs(&self) -> Result<Vec<Task>> {
+    async fn get_involved_prs(&self) -> Result<Vec<Message>> {
         let query = self.build_search_query(SearchType::Involved);
         self.get_prs(&query).await
     }
 
-    async fn get_authored_prs(&self) -> Result<Vec<Task>> {
+    async fn get_authored_prs(&self) -> Result<Vec<Message>> {
         let query = self.build_search_query(SearchType::Author);
         self.get_prs(&query).await
     }
 
-    async fn get_prs(&self, query: &str) -> Result<Vec<Task>> {
-        let mut tasks = Vec::new();
+    async fn get_prs(&self, query: &str) -> Result<Vec<Message>> {
+        let mut messages = Vec::new();
 
         let prs = self.get_pr_list(query).await?;
 
@@ -96,9 +95,9 @@ impl GithubClient {
 
             let description = Self::build_pr_description(&pr_details);
 
-            let mut task = Task::new(
+            let mut message = Message::new(
                 "github",
-                TaskType::PullRequest,
+                MessageType::PullRequest,
                 &pr.number.to_string(),
                 pr.title.clone(),
                 pr.html_url.to_string(),
@@ -110,7 +109,7 @@ impl GithubClient {
                 role: PersonRole::Author,
             })
             .with_priority(Priority::Unknown)
-            .with_metadata(TaskMetadata::GitHub(GitHubMetadata {
+            .with_metadata(MessageMetadata::GitHub(GitHubMetadata {
                 repo: format!("{}/{}", owner, repo),
                 number: pr.number,
                 state: format!("{:?}", pr.state),
@@ -120,20 +119,20 @@ impl GithubClient {
             }));
 
             if !description.is_empty() {
-                task = task.with_description(description);
+                message = message.with_description(description);
             }
 
-            tasks.push(task);
+            messages.push(message);
         }
 
-        Ok(tasks)
+        Ok(messages)
     }
 
     // ============================
     // AI Stats
     // ============================
 
-    pub async fn get_ai_stats(&self) -> Result<Task> {
+    pub async fn get_ai_stats(&self) -> Result<Message> {
         let mut date_range = DateRange::get().clone();
 
         let delta = date_range.end.date_naive() - date_range.start.date_naive();
@@ -147,20 +146,20 @@ impl GithubClient {
         let mut stats = AIUsageStats::new(start_date, end_date);
 
         let analyzer = CommitMessageAnalyzer::new();
-        let all_prs_task = self.get_all_pr_tasks_lite().await?;
+        let all_prs_task = self.get_all_pr_messages_lite().await?;
 
-        for task in all_prs_task {
-            let TaskMetadata::GitHub(ref metadata) = task.metadata else {
+        for message in all_prs_task {
+            let MessageMetadata::GitHub(ref metadata) = message.metadata else {
                 continue;
             };
 
             // pr created after date range
-            if task.created_at > date_range.end {
+            if message.created_at > date_range.end {
                 continue;
             }
 
             // pr created and last updated before date range
-            if task.updated_at < date_range.start && task.created_at < date_range.start {
+            if message.updated_at < date_range.start && message.created_at < date_range.start {
                 continue;
             }
 
@@ -179,8 +178,18 @@ impl GithubClient {
 
             let analysis = analyzer.analyze_pr_commits(&commits_in_range);
 
-            let lines_added: u64 = analysis.commits.iter().filter(|c| !c.is_merge).map(|c| c.additions).sum();
-            let lines_deleted: u64 = analysis.commits.iter().filter(|c| !c.is_merge).map(|c| c.deletions).sum();
+            let lines_added: u64 = analysis
+                .commits
+                .iter()
+                .filter(|c| !c.is_merge)
+                .map(|c| c.additions)
+                .sum();
+            let lines_deleted: u64 = analysis
+                .commits
+                .iter()
+                .filter(|c| !c.is_merge)
+                .map(|c| c.deletions)
+                .sum();
 
             if lines_added == 0 {
                 continue;
@@ -192,7 +201,7 @@ impl GithubClient {
             stats.add_pr(PrAIStats {
                 pr_number: metadata.number,
                 repo: metadata.repo.clone(),
-                title: task.title.clone(),
+                title: message.title.clone(),
                 lines_added,
                 lines_deleted,
                 ai_score: analysis.aggregate_score,
@@ -204,28 +213,28 @@ impl GithubClient {
             });
         }
 
-        Ok(stats.to_task())
+        Ok(stats.to_message())
     }
 
-    async fn get_all_pr_tasks_lite(&self) -> Result<Vec<Task>> {
+    async fn get_all_pr_messages_lite(&self) -> Result<Vec<Message>> {
         let authored_query = self.build_pr_query(SearchType::Author);
         let prs = self.get_pr_list(&authored_query).await?;
 
-        let tasks = prs
+        let messages = prs
             .into_iter()
             .filter_map(|pr| {
                 let (owner, repo) = Self::parse_repo_from_url(pr.html_url.as_str())?;
 
                 Some(
-                    Task::new(
+                    Message::new(
                         "github",
-                        TaskType::PullRequest,
+                        MessageType::PullRequest,
                         &pr.number.to_string(),
                         pr.title.clone(),
                         pr.html_url.to_string(),
                     )
                     .with_date(pr.created_at, pr.updated_at)
-                    .with_metadata(TaskMetadata::GitHub(GitHubMetadata {
+                    .with_metadata(MessageMetadata::GitHub(GitHubMetadata {
                         repo: format!("{}/{}", owner, repo),
                         number: pr.number,
                         state: format!("{:?}", pr.state),
@@ -237,7 +246,7 @@ impl GithubClient {
             })
             .collect();
 
-        Ok(tasks)
+        Ok(messages)
     }
 
     // ============================
@@ -522,7 +531,10 @@ impl GithubClient {
             let _ = writeln!(desc, "Reviews:");
 
             for review in &details.reviews {
-                let ts = review.submitted_at.with_timezone(&Local).format("%b %d, %l:%M %p");
+                let ts = review
+                    .submitted_at
+                    .with_timezone(&Local)
+                    .format("%b %d, %l:%M %p");
                 let _ = writeln!(desc, "- {} [{}]: {}", review.author, ts, review.state);
 
                 if let Some(truncated) = review.truncated_body(300).filter(|b| !b.is_empty()) {
@@ -542,7 +554,10 @@ impl GithubClient {
                     continue;
                 }
 
-                let ts = comment.created_at.with_timezone(&Local).format("%b %d, %l:%M %p");
+                let ts = comment
+                    .created_at
+                    .with_timezone(&Local)
+                    .format("%b %d, %l:%M %p");
                 let location = format!(" ({})", comment.path);
                 let _ = writeln!(desc, "- {} [{}]{}:", comment.author, ts, location);
                 let _ = writeln!(desc, "  {}", truncated);
@@ -558,7 +573,10 @@ impl GithubClient {
                     continue;
                 }
 
-                let ts = comment.created_at.with_timezone(&Local).format("%b %d, %l:%M %p");
+                let ts = comment
+                    .created_at
+                    .with_timezone(&Local)
+                    .format("%b %d, %l:%M %p");
                 let _ = writeln!(desc, "- {} [{}]:", comment.author, ts);
                 let _ = writeln!(desc, "   {}", truncated);
             }
@@ -604,13 +622,13 @@ impl GithubClient {
     // Helpers
     // ============================
 
-    fn deduplicate_tasks(tasks: Vec<Task>) -> Vec<Task> {
+    fn deduplicate_messages(messages: Vec<Message>) -> Vec<Message> {
         use std::collections::HashSet;
 
         let mut seen = HashSet::new();
-        tasks
+        messages
             .into_iter()
-            .filter(|task| seen.insert(task.id.clone()))
+            .filter(|message| seen.insert(message.id.clone()))
             .collect()
     }
 

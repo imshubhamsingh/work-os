@@ -1,6 +1,6 @@
 use chrono::Local;
 
-use crate::core::task::{PersonRole, Task, TaskType};
+use crate::core::message::{PersonRole, Message, MessageType};
 use crate::error::Result;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -14,7 +14,7 @@ impl MarkdownGenerator {
         Self { output_path: path }
     }
 
-    pub fn generate(&self, tasks: &[Task]) -> Result<PathBuf> {
+    pub fn generate(&self, messages: &[Message]) -> Result<PathBuf> {
         let now = Local::now();
 
         let date_folder = now.format("%Y-%m-%d").to_string();
@@ -25,34 +25,34 @@ impl MarkdownGenerator {
         let file_name = format!("sync-{}.md", time_stamp);
         let file_path = date_path.join(&file_name);
 
-        let mut content = self.build_markdown(tasks);
-        content = self.add_task_statistics(&content, tasks);
+        let mut content = self.build_markdown(messages);
+        content = self.add_message_statistics(&content, messages);
 
         std::fs::write(&file_path, content)?;
 
         Ok(file_path)
     }
 
-    fn build_markdown(&self, tasks: &[Task]) -> String {
+    fn build_markdown(&self, messages: &[Message]) -> String {
         let mut md = String::new();
 
-        if tasks.is_empty() {
+        if messages.is_empty() {
             return md;
         }
-        for task in tasks {
-            self.add_task(&mut md, task)
+        for message in messages {
+            self.add_message(&mut md, message)
         }
         md
     }
 
-    fn add_task(&self, md: &mut String, task: &Task) {
-        let icon = get_task_icon(task);
+    fn add_message(&self, md: &mut String, message: &Message) {
+        let icon = get_message_icon(message);
 
-        let source = format!("[{}]", task.source.to_uppercase());
+        let source = format!("[{}]", message.source.to_uppercase());
 
-        md.push_str(&format!("{} {} {}\n", icon, source, task.title));
+        md.push_str(&format!("{} {} {}\n", icon, source, message.title));
 
-        if let Some(description) = &task.description {
+        if let Some(description) = &message.description {
             for line in description.lines() {
                 md.push_str(&format!("           {}\n", line));
             }
@@ -60,29 +60,29 @@ impl MarkdownGenerator {
 
         let mut metadata: Vec<String> = Vec::new();
 
-        let author = find_author(task);
+        let author = find_author(message);
         metadata.push(format!("by @{}", author).to_string());
 
-        metadata.push(Task::format_absolute_time(task.created_at));
+        metadata.push(Message::format_absolute_time(message.created_at));
 
         if !metadata.is_empty() {
             md.push_str(&format!("     └─ {}\n", metadata.join(" · ")));
         }
 
-        md.push_str(&format!("     {}\n", task.url));
+        md.push_str(&format!("     {}\n", message.url));
     }
 
-    fn add_task_statistics(&self, md: &str, tasks: &[Task]) -> String {
+    fn add_message_statistics(&self, md: &str, messages: &[Message]) -> String {
         let mut md_with_stats = md.to_string();
 
         let mut source_counts: HashMap<String, i64> = HashMap::new();
 
-        for task in tasks {
-            *source_counts.entry(task.source.clone()).or_insert(0) += 1;
+        for message in messages {
+            *source_counts.entry(message.source.clone()).or_insert(0) += 1;
         }
 
         if !source_counts.is_empty() {
-            md_with_stats.push_str("\n\n## Task Statistics\n");
+            md_with_stats.push_str("\n\n## Message Statistics\n");
 
             for (source, count) in source_counts {
                 md_with_stats.push_str(&format!("{}: {} items\n", source, count));
@@ -93,8 +93,8 @@ impl MarkdownGenerator {
     }
 }
 
-pub fn find_author(task: &Task) -> String {
-    task.people
+pub fn find_author(message: &Message) -> String {
+    message.people
         .iter()
         .find(|p| p.role == PersonRole::Author)
         .map(|p| format!("{}", p.username))
@@ -103,16 +103,16 @@ pub fn find_author(task: &Task) -> String {
 
 
 
-pub fn get_task_icon(task: &Task) -> String {
-    let icon = match task.task_type {
-        TaskType::PullRequest => "🔀",
-        TaskType::Issue => "🐛",
-        TaskType::Review => "👀",
-        TaskType::Message => "💬",
-        TaskType::Ticket => "🎫",
-        TaskType::Statistics => "📊",
-        TaskType::MOM => "🎤",
-        TaskType::Other(_) => "📌",
+pub fn get_message_icon(message: &Message) -> String {
+    let icon = match message.message_type {
+        MessageType::PullRequest => "🔀",
+        MessageType::Issue => "🐛",
+        MessageType::Review => "👀",
+        MessageType::Message => "💬",
+        MessageType::Ticket => "🎫",
+        MessageType::Statistics => "📊",
+        MessageType::MOM => "🎤",
+        MessageType::Other(_) => "📌",
     };
     icon.to_string()
 }
