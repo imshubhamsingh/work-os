@@ -80,9 +80,9 @@ impl Plugin for GithubPlugin {
                 default: None,
             },
             ConfigField {
-                name: "include_repos",
-                label: "Repositories to include",
-                help: "Comma-separated repo names like 'owner/repo' (leave empty for all)",
+                name: "include_orgs",
+                label: "Organizations to include",
+                help: "Comma-separated org names (tracks all repos in these orgs)",
                 field_type: ConfigFieldType::StringList,
                 required: false,
                 default: None,
@@ -112,14 +112,12 @@ impl Plugin for GithubPlugin {
             .to_string();
 
         let include_orgs = ConfigField::extract_string_list(values, "include_orgs");
-        let include_repos = ConfigField::extract_string_list(values, "include_repos");
         let bots = ConfigField::extract_string_list(values, "bots");
 
         let config = GitHubConfig {
             token,
             username,
             include_orgs,
-            include_repos,
             bots,
         };
 

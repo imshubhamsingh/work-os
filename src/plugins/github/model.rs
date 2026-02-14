@@ -5,7 +5,6 @@ pub struct GitHubConfig {
     pub token: String,
     pub username: String,
     pub include_orgs: Vec<String>,
-    pub include_repos: Vec<String>,
     pub bots: Vec<String>,
 }
 
