@@ -81,7 +81,9 @@ impl GithubClient {
                 continue;
             };
 
-            let pr_details = self.get_pr_details(&owner, &repo, pr.number, pr.created_at).await?;
+            let pr_details = self
+                .get_pr_details(&owner, &repo, pr.number, pr.created_at)
+                .await?;
 
             let description = Self::build_pr_description(&pr_details);
 
@@ -250,16 +252,23 @@ impl GithubClient {
     ) -> Result<Vec<PrCommit>> {
         use octocrab::Page;
 
-        let route = format!("/repos/{}/pulls/{}/commits", repo, pr_number);
+        let route = format!("/repos/{}/pulls/{}/commits?per_page=500", repo, pr_number);
         println!("API call to Github: {}", route);
-        let commits: Page<octocrab::models::repos::RepoCommit> = self
+
+        let first_page: Page<octocrab::models::repos::RepoCommit> = self
             .octocrab
             .get(&route, None::<&()>)
             .await
             .map_err(|e| WorkOsError::GitHub(e.to_string()))?;
 
+        let commits: Vec<octocrab::models::repos::RepoCommit> = self
+            .octocrab
+            .all_pages(first_page)
+            .await
+            .map_err(|e| WorkOsError::GitHub(e.to_string()))?;
+
         let mut result = Vec::new();
-        for commit in commits.items {
+        for commit in commits {
             let Some(date) = commit.commit.author.and_then(|a| a.date) else {
                 continue;
             };
@@ -306,7 +315,13 @@ impl GithubClient {
         Ok(list.items)
     }
 
-    async fn get_pr_details(&self, owner: &str, repo: &str, pr_number: u64, pr_created_at: DateTime<Utc>) -> Result<PrDetails> {
+    async fn get_pr_details(
+        &self,
+        owner: &str,
+        repo: &str,
+        pr_number: u64,
+        pr_created_at: DateTime<Utc>,
+    ) -> Result<PrDetails> {
         let mut date_range = DateRange::get().clone();
 
         let delta = date_range.end.date_naive() - date_range.start.date_naive();
