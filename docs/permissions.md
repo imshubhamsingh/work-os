@@ -12,7 +12,6 @@ All credentials, token scopes, and system permissions required to run Work-OS, c
 | Slack | User token (`xoxp-...`) | 10 user scopes (see below) |
 | Jira | API token (Basic Auth) | Browse Projects + View Issues per project |
 | Granola | None — local filesystem | Read access to `~/Library/Application Support/Granola/` |
-| macOS | System | Notifications (optional) · Full Disk Access (if blocked) |
 
 ---
 

@@ -128,8 +128,9 @@ Here's where it gets interesting. After `work-os sync` generates the raw markdow
 
 **My complete stack:**
 1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, Jira, and Granola
-2. **Claude Code** (AI) → Processes raw data with custom templates
-3. **Obsidian** (Markdown) → Stores and organizes my daily briefs, weekly reports and follow-ups
+2. **Hook script** (`scripts/ai-effort.mjs`) → Captures every Claude Code / Cursor prompt into `ai-sessions.jsonl` alongside the sync files
+3. **Claude Code** (AI) → Processes raw data with custom templates
+4. **Obsidian** (Markdown) → Stores and organizes my daily briefs, weekly reports and follow-ups
 
 I've set up custom commands (in `prompts`) that:
 - Take the raw sync data from all platforms
@@ -180,6 +181,49 @@ PR: feat/new-dashboard (#234)
 
 This helps you understand your AI collaboration patterns and track productivity trends over time.
 
+## 🧠 AI Direction Effort Tracking
+
+LOC tells you *what* AI wrote. It doesn't tell you *how much human effort went into directing it*.
+
+A week where AI wrote 89% of your code could mean:
+- You gave 3 clear prompts and let it run → **genuine leverage**
+- You gave 40 prompts, debugged 3 wrong outputs, and made 10 architectural decisions → **AI as fast typist**
+
+These are completely different weeks. Work-OS now tracks both axes.
+
+### How it works
+
+A lightweight hook script (`scripts/ai-effort.mjs`) fires on every Claude Code and Cursor prompt submission, appending one JSON record to `raw/{DATE}/ai-sessions.jsonl` in your vault:
+
+```jsonl
+{"event":"prompt","provider":"claude","project":"my-project","session_id":"abc123","time":"03:01 PM","date":"2026-02-28","prompt":"How do I implement the vendor dropdown?"}
+{"event":"prompt","provider":"cursor","project":"hub-frontend","session_id":"def456","time":"02:15 PM","date":"2026-02-28","prompt":"Refactor this to use useCallback"}
+```
+
+At EOD, `work-os-today` reads the file and renders a direction effort summary alongside the AI LOC stats:
+
+```
+Direction Effort: 🔴 High — 14 prompts · 2 sessions · claude, cursor
+
+[█████████░] 89.4% AI Generated · 5,697 AI / 676 Human
+[████████░░] ~High direction · 14 prompts · 2 sessions
+
+Correlation: High AI LOC (89%) + 14 prompts = high-direction, not leverage
+```
+
+### What gets tracked
+- **Prompt count** per project and provider — the primary direction signal
+- **Session count** — proxy for context reconstruction cost (how many times you restarted)
+- **Actual prompt text** — for qualitative review at EOD
+- **Provider** — `claude`, `cursor`, or any tool you wire up
+
+### What gets filtered
+Sessions outside your configured `WORK_ROOT` or inside `EXCLUDED_ROOTS` (personal projects, dotfiles) are silently skipped — nothing personal ever touches the log.
+
+### Setup
+
+See [AI Effort Tracking](docs/ai-effort-tracking.md) for full installation and hook configuration for Claude Code and Cursor.
+
 ## 🏗️ How's It Built?
 
 Built with Rust because... well, why not? 🦀
@@ -218,6 +262,7 @@ Work-OS doesn't just dump data - it makes it look good:
 | [Architecture](docs/architecture.md) | System overview, data flow, directory structure |
 | [Configuration](docs/configuration.md) | Full config file reference with examples |
 | [Permissions](docs/permissions.md) | All required token scopes and system permissions in one place |
+| [AI Effort Tracking](docs/ai-effort-tracking.md) | Hook script setup for Claude Code and Cursor — tracks prompt count alongside AI LOC |
 | [GitHub Plugin](docs/plugins/github.md) | Setup, AI stats, token scopes |
 | [Slack Plugin](docs/plugins/slack.md) | Setup, OAuth scopes, what gets fetched |
 | [Jira Plugin](docs/plugins/jira.md) | Setup, JQL filters, priority mapping |
