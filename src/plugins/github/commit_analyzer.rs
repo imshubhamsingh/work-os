@@ -141,10 +141,7 @@ impl CommitMessageAnalyzer {
         let first_line_lower = first_line.to_lowercase();
 
         // Common merge commit patterns
-        first_line_lower.starts_with("merge ")
-            || first_line_lower.starts_with("merge branch")
-            || first_line_lower.starts_with("merge pull request")
-            || first_line_lower.contains("into ")
+        first_line_lower.contains("merge") || first_line_lower.contains("merging")
     }
 
     fn check_explicit_ai_attribution(&self, message_lower: &str) -> Option<String> {

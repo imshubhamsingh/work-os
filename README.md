@@ -217,6 +217,7 @@ Work-OS doesn't just dump data - it makes it look good:
 | [My Workflow](docs/workflow.md) | How I actually use this day to day |
 | [Architecture](docs/architecture.md) | System overview, data flow, directory structure |
 | [Configuration](docs/configuration.md) | Full config file reference with examples |
+| [Permissions](docs/permissions.md) | All required token scopes and system permissions in one place |
 | [GitHub Plugin](docs/plugins/github.md) | Setup, AI stats, token scopes |
 | [Slack Plugin](docs/plugins/slack.md) | Setup, OAuth scopes, what gets fetched |
 | [Jira Plugin](docs/plugins/jira.md) | Setup, JQL filters, priority mapping |

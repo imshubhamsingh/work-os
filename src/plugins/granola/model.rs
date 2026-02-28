@@ -2,37 +2,53 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
+use serde_json::Value;
+
+// ============================
+// Auth
+// ============================
 
 #[derive(Debug, Deserialize)]
-pub struct CacheFileWrapper {
-    pub cache: String,
+pub struct SupabaseJson {
+    /// Stored as a JSON-encoded string, not a nested object
+    pub workos_tokens: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CacheRoot {
-    pub state: CacheState,
+pub struct WorkosTokens {
+    pub access_token: String,
+}
+
+// ============================
+// Documents
+// ============================
+
+#[derive(Debug, Deserialize)]
+pub struct DocumentSetResponse {
+    pub documents: HashMap<String, DocumentSetEntry>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct CacheState {
+pub struct DocumentSetEntry {
     #[serde(default)]
-    pub documents: HashMap<String, GranolaDocument>,
-    #[serde(default)]
-    pub transcripts: HashMap<String, Vec<TranscriptSegment>>,
-    #[serde(default)]
-    #[serde(rename = "documentPanels")]
-    pub document_panels: HashMap<String, HashMap<String, DocumentPanel>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]
+pub struct V2DocumentsResponse {
+    pub docs: Vec<GranolaDocument>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct GranolaDocument {
     #[serde(default)]
     pub id: Option<String>,
     #[serde(default)]
     pub title: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    // pub transcribe: bool,
+    #[serde(default)]
+    pub created_at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub updated_at: Option<DateTime<Utc>>,
     #[serde(default)]
     pub deleted_at: Option<DateTime<Utc>>,
     #[serde(default)]
@@ -40,7 +56,6 @@ pub struct GranolaDocument {
 }
 
 impl GranolaDocument {
-    // need better name
     pub fn get_attendees_formated(&self) -> Vec<String> {
         let mut attendees = Vec::new();
         if let Some(people) = &self.people {
@@ -53,15 +68,14 @@ impl GranolaDocument {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PeopleInfo {
-    // pub title: String,
     pub creator: Person,
     #[serde(default)]
     pub attendees: Vec<Person>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Person {
     pub email: Option<String>,
 }
@@ -72,16 +86,17 @@ impl Person {
     }
 }
 
+// ============================
+// Transcript
+// ============================
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct TranscriptSegment {
-    // pub document_id: String,
-    // pub start_timestamp: String,
-    // pub end_timestamp: String,
-    // format: "Speaker A: <text>" - speaker embedded in text
     #[serde(default)]
     pub text: Option<String>,
-    // pub source: String, // transcription service like "assemblyai" at least on desktop app, not the speaker
-    // pub id: String,
+    /// "microphone" = you speaking, "system" = other participants' audio
+    #[serde(default)]
+    pub source: Option<String>,
     #[serde(default)]
     pub is_final: bool,
 }
@@ -89,46 +104,45 @@ pub struct TranscriptSegment {
 impl TranscriptSegment {
     pub fn display_transcripts(transcripts: Option<&[TranscriptSegment]>) -> String {
         let mut content = String::new();
+        content.push_str("## Transcript\n\n");
 
-        if let Some(segments) = transcripts {
-            content.push_str("## Transcript\n\n");
-            for segment in segments.iter().filter(|s| s.is_final) {
-                let (speaker, text) = segment.get_speaker_and_text();
-                content.push_str(&format!("**{}**: {}\n\n", speaker, text));
+        match transcripts {
+            Some(segments) => {
+                for segment in segments.iter().filter(|s| s.is_final) {
+                    let (speaker, text) = segment.get_speaker_and_text();
+                    if !text.is_empty() {
+                        content.push_str(&format!("**{}**: {}\n\n", speaker, text));
+                    }
+                }
             }
-        } else {
-            content.push_str("## Transcript\n\n");
-            content.push_str("_No transcript available for this meeting._\n\n");
+            None => {
+                content.push_str("_No transcript available for this meeting._\n\n");
+            }
         }
 
         content
     }
 
     fn get_speaker_and_text(&self) -> (&str, &str) {
-        if let Some(text) = &self.text {
-            if let Some((speaker, content)) = text.split_once(':') {
-                let speaker = speaker.trim();
-                let content = content.trim();
-
-                if speaker.starts_with("Speaker ") || speaker.contains("Speaker") {
-                    return (speaker, content);
-                }
-            }
-            ("Unknown Speaker", text.trim())
-        } else {
-            ("Unknown Speaker", "")
-        }
+        let speaker = match self.source.as_deref() {
+            Some("microphone") => "You (microphone)",
+            Some("system") => "Other (system audio)",
+            _ => "Unknown",
+        };
+        let text = self.text.as_deref().unwrap_or("").trim();
+        (speaker, text)
     }
 }
 
+// ============================
+// Panels
+// ============================
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct DocumentPanel {
-    // pub id: String,
-    // pub document_id: String,
-    // pub title: String,
+    /// ProseMirror JSON document from Granola AI summary
     #[serde(default)]
-    pub original_content: Option<String>, // html format summary from Granola AI
-    // pub created_at: DateTime<Utc>,
+    pub content: Option<Value>,
     pub updated_at: DateTime<Utc>,
     #[serde(default)]
     pub deleted_at: Option<DateTime<Utc>>,

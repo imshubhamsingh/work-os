@@ -9,7 +9,6 @@ use crate::core::message::Message;
 use crate::error::Result;
 use crate::plugins::granola::{client::GranolaClient, config::GranolaConfig};
 
-mod cache_reader;
 mod client;
 mod config;
 mod model;
@@ -48,7 +47,7 @@ impl Plugin for GranolaPlugin {
         PluginMetadata {
             id: "granola",
             name: "Granola",
-            description: "Fetch meeting notes from Granola cache",
+            description: "Fetch meeting notes from Granola API",
             icon: "🍥",
         }
     }
@@ -59,7 +58,7 @@ impl Plugin for GranolaPlugin {
 
     fn config_schema(&self) -> Vec<ConfigField> {
         vec![
-            // No configuration needed - Granola reads from fixed cache location
+            // No configuration needed - reads WorkOS token from ~/Library/Application Support/Granola/supabase.json
         ]
     }
 
