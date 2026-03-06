@@ -56,6 +56,7 @@ pub enum MessageType {
     Ticket,
     Statistics,
     MOM,
+    Canvas,
     Other(String),
 }
 
@@ -149,6 +150,7 @@ impl MessageType {
             MessageType::Ticket => "ticket",
             MessageType::Statistics => "statistics",
             MessageType::MOM => "mom",
+            MessageType::Canvas => "canvas",
             MessageType::Other(name) => name,
         }
     }

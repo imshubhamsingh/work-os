@@ -9,21 +9,25 @@ use std::fmt::Write;
 use crate::core::message::{Message, MessageType};
 use crate::error::{Result, WorkOsError};
 use crate::models::date_range::DateRange;
+use crate::plugins::slack::canvas_writer::CanvasWriter;
 use crate::plugins::slack::model::*;
+
+use super::canvas;
 
 const SLACK_API_BASE_URL: &str = "https://slack.com/api";
 
 const MAX_MESSAGES_LIMIT: i32 = 100;
 
 pub struct SlackClient {
-    http: Client,
-    token: String,
+    pub http: Client,
+    pub token: String,
     keywords: Vec<String>,
-    channels: Vec<String>,
+    pub channels: Vec<String>,
     user_cache: HashMap<String, SlackUser>,
     user_group_cache: HashMap<String, SlackUserGroup>,
     channel_cache: HashMap<String, Option<SlackChannel>>,
     seen_messages: HashSet<String>,
+    pub canvas_writer: CanvasWriter,
 }
 
 impl SlackClient {
@@ -37,6 +41,7 @@ impl SlackClient {
             user_group_cache: HashMap::new(),
             channel_cache: HashMap::new(),
             seen_messages: HashSet::new(),
+            canvas_writer: CanvasWriter::new(config.output_path.clone()),
         })
     }
 
@@ -48,12 +53,13 @@ impl SlackClient {
     pub async fn get_all_messages(&mut self) -> Result<Vec<Message>> {
         let mut all_messages = Vec::new();
 
-        all_messages.extend(self.get_all_channel_messages().await?);
-        all_messages.extend(self.get_all_mentions(None).await?);
-        all_messages.extend(self.get_all_my_messages().await?);
-        all_messages.extend(self.get_all_dms().await?);
-        all_messages.extend(self.get_all_group_dms().await?);
-        all_messages.extend(self.get_all_keywords_messages().await?);
+        // all_messages.extend(self.get_all_channel_messages().await?);
+        // all_messages.extend(self.get_all_mentions(None).await?);
+        // all_messages.extend(self.get_all_my_messages().await?);
+        // all_messages.extend(self.get_all_dms().await?);
+        // all_messages.extend(self.get_all_group_dms().await?);
+        // all_messages.extend(self.get_all_keywords_messages().await?);
+        all_messages.extend(self.get_all_canvases().await?);
 
         all_messages.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         Ok(all_messages)
@@ -390,7 +396,7 @@ impl SlackClient {
             .collect())
     }
 
-    async fn get_channel_messages(&self, channel_id: &str) -> Result<Vec<SlackMessage>> {
+    pub async fn get_channel_messages(&self, channel_id: &str) -> Result<Vec<SlackMessage>> {
         let date_range = DateRange::get();
         let oldest_timestamp = date_range.start.timestamp();
         let newest_timestamp = date_range.end.timestamp();
@@ -409,7 +415,7 @@ impl SlackClient {
         Ok(response.data.map(|d| d.messages).unwrap_or_default())
     }
 
-    async fn get_thread_messages(
+    pub async fn get_thread_messages(
         &mut self,
         channel_id: &str,
         parent_ts: &str,
@@ -449,7 +455,7 @@ impl SlackClient {
         Ok(fetch_channel)
     }
 
-    async fn get_user_info(&mut self, user_id: &str) -> Result<SlackUser> {
+    pub async fn get_user_info(&mut self, user_id: &str) -> Result<SlackUser> {
         if let Some(cached) = self.user_cache.get(user_id) {
             return Ok(cached.clone());
         }
@@ -490,7 +496,30 @@ impl SlackClient {
             .unwrap_or_else(|| SlackUserGroup::unknown(usergroup_id)))
     }
 
-    async fn get<T: DeserializeOwned>(&self, end_point: &str) -> Result<T> {
+    async fn get_all_canvases(&mut self) -> Result<Vec<Message>> {
+        let auth: SlackResponse<AuthTestData> = self.get("auth.test").await?;
+        let user_id = auth.data.expect("auth.test must return data").user_id;
+        let user_mention = format!("<@{}>", user_id);
+
+        let (directly_involved, others) = canvas::fetch_all_canvases(self, &user_id).await?;
+        let mut messages = Vec::new();
+
+        for c in directly_involved {
+            if let Some(msg) =
+                canvas::process_involved_canvas(self, &c, &user_id, &user_mention).await?
+            {
+                messages.push(msg);
+            }
+        }
+        for c in others {
+            if let Some(msg) = canvas::process_observer_canvas(self, &c, &user_mention).await? {
+                messages.push(msg);
+            }
+        }
+        Ok(messages)
+    }
+
+    pub async fn get<T: DeserializeOwned>(&self, end_point: &str) -> Result<T> {
         println!("API call to Slack: {}", &end_point);
         let url = format!("{}/{}", SLACK_API_BASE_URL, end_point);
         let response = self
@@ -548,7 +577,7 @@ impl SlackClient {
         Ok(Some(user))
     }
 
-    async fn replace_user_id_with_handle(&mut self, description: &str) -> Result<String> {
+    pub async fn replace_user_id_with_handle(&mut self, description: &str) -> Result<String> {
         let mut result = description.to_string();
 
         // replace user mentions: <@USER_ID> or <@USER_ID|@username>
@@ -672,7 +701,7 @@ impl SlackClient {
         Ok(description.trim_end().to_string())
     }
 
-    async fn build_description_from_message_and_thread(
+    pub async fn build_description_from_message_and_thread(
         &mut self,
         channel_id: &str,
         messages: &[SlackMessage],

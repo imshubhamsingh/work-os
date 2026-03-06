@@ -31,10 +31,6 @@ All follow-ups live in a single file:
 $WORK_OS_BASE_DIR/follow-ups.md
 ```
 
-**Environment Variables:**
-- `$WORK_OS_BASE_DIR`: Base directory for work-os data
-  - Example: `~/Projects/obsidian/work/00-work-os`
-
 This file is authoritative.
 
 ---
@@ -113,11 +109,13 @@ It must NOT:
 
 ## Input Sources (READ-ONLY)
 
-The command may read:
+The command may read (use absolute paths — do NOT use `~` or Glob):
 
-- `today.md`
-- Archived daily briefs (last 7 days)
-- Latest weekly summary (if present)
+- `$WORK_OS_BASE_DIR/today.md`
+- `$WORK_OS_BASE_DIR/archive/daily/YYYY-MM-DD.md` (last 7 days)
+- `$WORK_OS_BASE_DIR/archive/weekly/` (latest weekly summary if present)
+
+To list archive files, use `Bash ls` — do NOT use Glob (Glob cannot expand `~` and silently returns nothing).
 
 All input sources are **read-only**.
 
@@ -132,11 +130,11 @@ Create a new follow-up ONLY when all conditions are true:
 - The item is expected to require future action
 
 Common creation signals:
-- "waiting on"
-- "pending review"
-- "blocked by"
-- "follow up after"
-- "check once X is done"
+- “waiting on”
+- “pending review”
+- “blocked by”
+- “follow up after”
+- “check once X is done”
 
 Rules:
 - Do NOT create duplicates
@@ -155,7 +153,7 @@ Use a **hybrid resolution model**.
 Resolve automatically if ANY of the following are detected:
 
 - A referenced PR is **merged or closed**
-- Notes explicitly state "done", "shipped", "merged", or "resolved"
+- Notes explicitly state “done”, “shipped”, “merged”, or “resolved”
 - The blocking condition no longer exists
 
 ---
@@ -214,8 +212,8 @@ $WORK_OS_BASE_DIR/follow-ups.md
 
 No other output is required.
 
-Do NOT print explanations.
-Do NOT summarize changes.
+Do NOT print explanations.  
+Do NOT summarize changes.  
 Do NOT ask questions.
 
 ---

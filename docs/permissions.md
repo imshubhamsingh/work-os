@@ -9,7 +9,7 @@ All credentials, token scopes, and system permissions required to run Work-OS, c
 | Service | Token Type | Minimum Scopes / Access |
 |---------|-----------|--------------------------|
 | GitHub | Classic PAT or Fine-grained PAT | `repo`, `read:org`, `read:user` |
-| Slack | User token (`xoxp-...`) | 10 user scopes (see below) |
+| Slack | User token (`xoxp-...`) | 12 user scopes (see below) |
 | Jira | API token (Basic Auth) | Browse Projects + View Issues per project |
 | Granola | None — local filesystem | Read access to `~/Library/Application Support/Granola/` |
 
@@ -67,6 +67,8 @@ Create at: <https://api.slack.com/apps> → Your App → OAuth & Permissions →
 | `mpim:read` | List group DMs |
 | `search:read` | Search messages for keywords and @mentions |
 | `users:read` | Resolve user IDs to display names |
+| `files:read` | List and download canvas files (`files.list`, `files.info`, `url_private_download`) |
+| `canvases:read` | Read canvas backing channel messages (`conversations.history` on the `C`-prefixed channel derived from the canvas file ID) |
 
 > These are **User Token Scopes**, not Bot Token Scopes. Slack shows both sections on the OAuth & Permissions page — make sure you're adding to the correct one.
 
@@ -76,6 +78,9 @@ Create at: <https://api.slack.com/apps> → Your App → OAuth & Permissions →
 - @mentions and keyword matches via search
 - Messages you sent (for follow-up tracking)
 - User display name resolution
+- Canvas files you are an editor of, or that are shared in monitored channels
+- Canvas backing channel comments (inline canvas comments appear as messages in a channel with the same ID as the canvas file, with `F` replaced by `C`)
+- Canvas content downloaded as HTML for mention detection and archiving
 
 ---
 

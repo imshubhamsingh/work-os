@@ -30,6 +30,7 @@ Cover:
 - Focus distribution *(hands-on execution vs reviews/mentorship vs coordination/firefighting)*
 - The most meaningful win
 - Any notable stressors, risks, or morale signals
+- Oscillation health *(Oscillating / Mixed / Linear — based on after-hours pattern and recovery logged in EOD Reflections)*
 - Confidence and outlook for the upcoming week
 - Optional: team load or capacity signal (if relevant)
 
@@ -42,7 +43,7 @@ Rules:
 - Avoid people-performance evaluation; focus on systems, workload, and delivery
 - Reads like a **staff / lead engineer weekly update**
 
-For any **non-subjective claim**, include an Obsidian source link (see "Obsidian Source Linking").
+For any **non-subjective claim**, include an Obsidian source link (see “Obsidian Source Linking”).
 
 ---
 
@@ -53,23 +54,46 @@ For any **non-subjective claim**, include an Obsidian source link (see "Obsidian
 Read archived daily briefs from:
 
 ```
-$WORK_OS_BASE_DIR/archive/{DATE}.md
+$WORK_OS_BASE_DIR/archive/daily/{DATE}.md
 ```
-
-**Environment Variables:**
-- `$WORK_OS_BASE_DIR`: Base directory for work-os data
-  - Example: `~/Projects/obsidian/work/00-work-os`
 
 - Look back **7 calendar days**, counting backwards from today
 - Some days may be missing — skip silently
 
-### Fallback Source — Today
+### Additional Source — Today (if exists)
 
-If today's date is **not included** in the archive window, additionally read:
+**Check today's data based on the current day of the week:**
 
-```
-$WORK_OS_BASE_DIR/today.md
-```
+**If today is Saturday:**
+- **Step 1 — Archive today.md:** Move `today.md` (Friday's checklist) into the archive as Friday's file:
+  ```
+  $WORK_OS_BASE_DIR/today.md
+    → $WORK_OS_BASE_DIR/archive/daily/{FRIDAY_DATE}.md
+  ```
+  where `{FRIDAY_DATE}` = today minus 1 day (YYYY-MM-DD format).
+  Only move if `today.md` exists and `archive/daily/{FRIDAY_DATE}.md` does not already exist.
+
+- **Step 2 — Read Friday data:** The 7-day archive loop will naturally pick up `archive/daily/{FRIDAY_DATE}.md` as part of the past week. No separate read needed.
+
+- **Step 3 — Read Saturday sync:** Additionally read the Saturday archive sync for Friday's work log.
+  **Use Bash ls to discover files** (do NOT use Glob — it cannot expand `~` and silently returns nothing):
+  ```bash
+  ls $WORK_OS_BASE_DIR/raw/{SATURDAY_DATE}/
+  ```
+  Then read each `sync-*.md` found via the Read tool using its full absolute path:
+  ```
+  $WORK_OS_BASE_DIR/raw/{SATURDAY_DATE}/sync-HHMM.md
+  ```
+  **Note:** Sync files live under `raw/`, NOT `archive/`. This is the correct path.
+  This is a manual sync taken on Saturday containing Friday's completed work. Merge it with `archive/daily/{FRIDAY_DATE}.md` as a single Friday data source — do not treat it as a separate day.
+
+**If today is any other day:**
+- Check if `today.md` exists and read it if present:
+  ```
+  $WORK_OS_BASE_DIR/today.md
+  ```
+- Today's brief may not be archived yet, so always check for it
+- If the file doesn't exist, skip silently (day off)
 
 Do NOT read:
 - raw work-os files
@@ -108,27 +132,48 @@ Rules:
 - Do NOT invent block IDs or headings
 - Line numbers are contextual only (Obsidian does not support line anchors)
 - If a claim cannot be traced, omit it
-- **PRs and Slack threads must be hyperlinks** (e.g., `[PR #123](https://github.com/...)`, `[Slack thread](https://...)`)
+- **PRs and Slack threads must be hyperlinks** (e.g., `[PR #123](https://github.com/...)`, `[Slack thread](https://{your-workspace}.slack.com/...)`)
+
+### ⚠️ Wiki-Links in Table Cells — CRITICAL
+
+The `|` character in `[[YYYY-MM-DD|source]]` **breaks Markdown tables** — it is interpreted as a column separator.
+
+**In ALL table cells, always escape the pipe:**
+```markdown
+[[2026-01-26\|source]]   ✅ correct — renders as a link in Obsidian
+[[2026-01-26|source]]    ❌ breaks the table
+```
+
+This applies to every table in the output (Reviews, Coding, AI stats, etc.). Never use an unescaped `|` inside `[[...]]` within a table cell.
 
 ---
 
-## AI Stats Aggregation (NEW)
+## AI Stats Aggregation
 
 When reading daily briefs, specifically look for the `## 🤖 AI Usage Statistics` section.
 
-1. **Extract Data:** Parse the `Total LOC`, `AI LOC`, and `Human LOC` numbers from each day.
-2. **Aggregate:**
-   - Sum all `Total LOC`
-   - Sum all `AI LOC`
-   - Sum all `Human LOC`
-3. **Calculate Weekly Stats:**
+1. **Extract LOC data:** Parse the `Total LOC`, `AI LOC`, and `Human LOC` numbers from each day.
+2. **Aggregate LOC:**
+   - Sum all `Total LOC`, `AI LOC`, `Human LOC`
    - `Weekly AI %` = `(Total AI / Total Weekly LOC) * 100`
-   - `Weekly Human %` = `(Total Human / Total Weekly LOC) * 100`
-4. **Format:**
-   - Generate a new 10-block progress bar based on the *weekly* percentage.
-   - Present the summary data (Total, AI, Human stats) in the `## 🤖 Week's AI Usage Statistics` section.
-   - **Do NOT** include a per-PR breakdown table.
-   - If no AI stats are found in any daily brief, omit this section entirely.
+3. **Extract Direction data** from each day's `## 🧠 AI Direction Log` section:
+   - Sum all prompt counts across all days and projects → `Weekly Prompts`
+   - Sum all distinct session counts → `Weekly Sessions`
+   - Collect all providers seen → `Providers`
+   - Per-day prompt count → used for daily comparison table
+4. **Compute weekly Direction Effort label:**
+   - 🔴 High: total weekly prompts > 60 OR any single day > 15
+   - 🟡 Moderate: total weekly prompts 25–60
+   - 🟢 Light: total weekly prompts < 25
+5. **Compute direction bar:**
+   - 🔴 High: `[████████░░]`
+   - 🟡 Moderate: `[█████░░░░░]`
+   - 🟢 Light: `[███░░░░░░░]`
+6. **Format:**
+   - Generate a new 10-block AI LOC progress bar based on weekly AI %.
+   - Show Direction Effort label + bars immediately after the LOC summary line.
+   - If no AI stats found in any daily brief, omit this section entirely.
+   - If no Direction Log data found, omit Direction Effort line and direction bar.
 
 ## AI Trend Generation (Verified Daily Data)
 
@@ -149,7 +194,7 @@ When reading daily briefs, specifically look for the `## 🤖 AI Usage Statistic
 Write the final weekly summary to:
 
 ```
-$WORK_OS_BASE_DIR/archive/weekly/{START_DATE}_{END_DATE}.md
+$WORK_OS_BASE_DIR/archive/weekly/{START_DATE}-{END_DATE}.md
 ```
 
 Filename rules:
@@ -188,11 +233,36 @@ Filename rules:
 - **PRs authored:** X (Y merged)
 - **After-hours:** X nights (dates if any)
 - **Carryovers:** X
+- **Recovery:** [Oscillating 🟢 / Mixed 🟡 / Linear 🔴] — X after-hours nights, carryovers [stable/rising/falling]
 - **Trend:** [spike/steady/light] [when it shifted]
 - **Confidence:** 🟢/🟡/🔴 [brief reason]
 
 > Quick metrics for week-over-week comparison.
 > Confidence: 🟢 high | 🟡 mixed | 🔴 risk
+
+---
+
+## 🔄 Oscillation Health
+
+**Pattern:** Linear 🔴 / Mixed 🟡 / Oscillating 🟢
+*Oscillating = 3+/5 daily protocols logged + ≤ 1 after-hours night · Linear = 0 protocols + 3+ consecutive after-hours nights*
+
+**Load signals:**
+- After-hours nights: X (dates)
+- Carryover peak: X items ([day])
+- P0 spikes: [days with heavy P0 load — or "none"]
+
+**Verdict:** [One-line assessment — e.g. "Mostly linear — heavy delivery week with 3 consecutive after-hours nights. Prioritise recovery before next sprint."]
+
+**Next week:**
+- [ ] [Recovery nudge — e.g. "Block recovery time early in the week — load was 🔴 this week"]
+
+> **Detection rules (work signals only):**
+> - Oscillating 🟢: ≤ 1 after-hours night + carryover count stable or falling
+> - Mixed 🟡: 2 after-hours nights OR carryover count rising
+> - Linear 🔴: 3+ consecutive after-hours nights OR carryover count spiking across the week
+>
+> Source: after-hours count and carryover data from daily archives only. Do not infer recovery activities.
 
 ---
 
@@ -258,7 +328,7 @@ Filename rules:
 - Target: [date/timeline]
 - Status: Shipped / Partial / Blocked
 - Key PRs:
-  - [PR title](url) — status
+  - [PR title](url) — status  
     [[YYYY-MM-DD|source]]
 
 ---
@@ -291,7 +361,7 @@ Filename rules:
 |----|------|--------|-------------|--------|
 | [#NNN](url) | repo-name | Merged/Open | Brief description | [source](YYYY-MM-DD.md#Section%20Name) |
 
-> **Note:** Use standard markdown links (not wiki-links) for table cells. URL-encode spaces as `%20` in heading anchors.
+> **Note:** In table cells, always escape the pipe in wiki-links: `[[YYYY-MM-DD\|source]]` not `[[YYYY-MM-DD|source]]`. The unescaped `|` breaks the table. URL-encode spaces as `%20` in heading anchors.
 
 > **How to identify authored PRs:**
 > Look for PRs in daily briefs under "Own PRs" sections, or PRs where the user is explicitly the author (not reviewer).
@@ -301,23 +371,27 @@ Filename rules:
 
 ## 🤖 Week's AI Usage Statistics
 
-**Total LOC:** [Sum Total] | **AI:** [Sum AI] ([New %]%) | **Human:** [Sum Human] ([New %]%)
+**Total LOC:** [Sum Total] | **AI:** [Sum AI] ([AI%]%) | **Human:** [Sum Human] ([Human%]%)
+**Direction Effort:** [🟢 Light / 🟡 Moderate / 🔴 High] ([N] prompts · [N] sessions · [providers])
 
-`[Progress Bar]` [New %]% AI Generated
+`[Progress Bar 10 blocks]` [AI%]% AI Generated
+`[Progress Bar 10 blocks]` ~[Light/Moderate/High] human direction intensity
+
+**Correlation:** [One line — e.g. "High AI LOC + high prompts = AI as fast typist, not autonomous" or "High AI LOC + low prompts = genuine leverage this week"]
 
 ### 📈 Daily AI vs Human Comparison
 
-| Date | 🤖 AI | 👤 Human | Winner | AI % |
-|------|-------|----------|---------|------|
-| MM-DD | X,XXX | X,XXX | AI/Human/~Tie | XX% |
+| Date | 🤖 AI | 👤 Human | Prompts | Winner | AI % |
+|------|-------|----------|---------|--------|------|
+| MM-DD | X,XXX | X,XXX | [N] | AI/Human/~Tie | XX% |
 
-📊 **Trend:** [Brief narrative of AI vs Human pattern across the week - when did AI spike? When did it drop? Any notable shifts?]
+📊 **Trend:** [Narrative of AI vs Human LOC pattern + direction effort pattern — when did AI spike? When did prompt count peak? Any days where high AI LOC but low prompts = genuine leverage?]
 
 > **How to populate:**
-> - Bold the larger number in each row
-> - Winner column: "AI" if AI > Human, "Human" if Human > AI, "~Tie" if within 5%
-> - AI % = (AI / Total) * 100
-> - Trend: Narrative summary of the weekly pattern (e.g., "AI dominated early week, Human regained control Thu-Fri")
+> - Bold the larger LOC number in each row
+> - Winner: "AI" if AI > Human, "Human" if Human > AI, "~Tie" if within 5%
+> - Prompts: sum of prompt count from that day's AI Direction Log (0 if no data)
+> - Trend: combine LOC narrative with direction effort narrative — the two together tell the real story
 
 ---
 
@@ -372,9 +446,7 @@ Filename rules:
 
 ## 💰 Generation Cost
 
-**Method:** If `$ENABLE_COST_TRACKING` is enabled, run `$COST_TRACKING_CMD` before starting and after completing all work.
-
-**Example:** `npx ccusage@latest daily --json`
+**Method:** Run `npx ccusage@latest daily --json` before starting and after completing all work. Calculate diff for today's date.
 
 **Total Cost:** $X.XX
 
@@ -382,6 +454,8 @@ Filename rules:
 - **Files Read:** N daily briefs from archive
 - **Files Written:** 1 weekly summary
 - **Cache Usage:** Heavy (system prompts reused)
+
+*Focus on total cost as primary metric. Token breakdowns may not reflect file content written via tools.*
 ```
 
 ---

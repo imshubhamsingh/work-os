@@ -1,6 +1,6 @@
 # Work-OS Claude Command Templates
 
-Generic templates for Work-OS daily, weekly, and follow-up commands.
+Generic templates for Work-OS daily, weekly, monthly, and follow-up commands.
 
 ## Templates Included
 
@@ -22,7 +22,20 @@ Generates weekly summaries from archived daily briefs.
 - Aggregates AI usage statistics with daily trend comparison
 - Identifies wins, misses, and learnings
 
-### 3. `work-os-follow-ups.md`
+### 3. `work-os-monthly.md`
+Generates monthly summaries from weekly summaries with career-level signal and systemic pattern analysis.
+
+**What it does:**
+- Synthesizes 4–5 weeks of weekly summaries into a high-signal monthly view
+- Generates an executive-readable summary (VP/Director level)
+- Tracks time allocation reality vs targets (execution, reviews, coordination, firefighting)
+- Derives role load split (EM vs Staff Engineer vs IC)
+- Produces AI adoption trajectory and leverage quality classification
+- Identifies systemic patterns recurring across 3+ weeks
+- Scores delegation health and ceiling-raise contributions
+- Outputs promotion readiness signals and next-month structural commitments
+
+### 4. `work-os-follow-ups.md`
 Maintains stateful follow-ups across daily and weekly contexts.
 
 **What it does:**
@@ -167,6 +180,7 @@ If you're not using AI code tracking:
    ```
    /work-os-today
    /work-os-weekly
+   /work-os-monthly
    /work-os-follow-ups
    ```
 

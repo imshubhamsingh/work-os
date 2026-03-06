@@ -1,3 +1,5 @@
+mod canvas;
+mod canvas_writer;
 mod client;
 mod model;
 
@@ -89,7 +91,7 @@ impl Plugin for SlackPlugin {
     fn configure_from_values(
         &mut self,
         values: &HashMap<String, Value>,
-        _: &PathBuf,
+        data_dir: &PathBuf,
     ) -> Result<()> {
         let token = values
             .get("token")
@@ -104,6 +106,7 @@ impl Plugin for SlackPlugin {
             token,
             keywords,
             channels,
+            output_path: data_dir.clone(),
         };
 
         self.configure(config)

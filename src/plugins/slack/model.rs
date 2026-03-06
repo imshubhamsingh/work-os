@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -5,6 +7,7 @@ pub struct SlackConfig {
     pub token: String,
     pub keywords: Vec<String>,
     pub channels: Vec<String>,
+    pub output_path: PathBuf,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -242,4 +245,68 @@ impl SlackThreadMessage {
             .iter()
             .find(|att| att.is_forwarded_message())
     }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FilesListData {
+    pub files: Vec<SlackCanvas>,
+    pub paging: FilesListPaging,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FilesListPaging {
+    pub pages: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SlackCanvas {
+    pub id: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub created: u64,
+    #[serde(default)]
+    pub updated: u64,
+    pub permalink: Option<String>,
+    pub url_private_download: Option<String>,
+    #[serde(default)]
+    pub editors: Vec<String>,
+    #[serde(default)]
+    pub channels: Vec<String>,
+}
+
+impl SlackCanvas {
+    pub fn url(&self) -> Option<&str> {
+        self.permalink.as_deref()
+    }
+
+    pub fn updated_at(&self) -> chrono::DateTime<chrono::Utc> {
+        chrono::DateTime::from_timestamp(self.updated as i64, 0)
+            .unwrap_or_else(chrono::Utc::now)
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FilesInfoData {
+    pub file: SlackFileInfo,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SlackFileInfo {
+    pub shares: Option<SlackFileShares>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct SlackFileShares {
+    #[serde(default)]
+    pub public: HashMap<String, Vec<SlackFileShare>>,
+    #[serde(default)]
+    pub private: HashMap<String, Vec<SlackFileShare>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SlackFileShare {
+    pub ts: String,
+    #[serde(default)]
+    pub reply_count: u64,
 }

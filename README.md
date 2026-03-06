@@ -9,7 +9,7 @@ A Rust CLI that syncs your work from everywhere, then uses AI (Claude Code) to t
 Ever had that moment where you're like "Wait, did I miss reviewing that PR?" or "Which Slack thread was that in?" Yeah, me too. 
 
 Work-OS is a Rust CLI that pulls together your:
-- 💬 Slack messages, mentions, and DMs
+- 💬 Slack messages, mentions, DMs, and Canvases
 - 🔀 GitHub PRs, issues, and reviews
 - 🎫 Jira tickets and sprints
 - 🍥 Granola meeting notes (transcripts & summaries) - highly experimental and macos only
@@ -264,7 +264,7 @@ Work-OS doesn't just dump data - it makes it look good:
 | [Permissions](docs/permissions.md) | All required token scopes and system permissions in one place |
 | [AI Effort Tracking](docs/ai-effort-tracking.md) | Hook script setup for Claude Code and Cursor — tracks prompt count alongside AI LOC |
 | [GitHub Plugin](docs/plugins/github.md) | Setup, AI stats, token scopes |
-| [Slack Plugin](docs/plugins/slack.md) | Setup, OAuth scopes, what gets fetched |
+| [Slack Plugin](docs/plugins/slack.md) | Setup, OAuth scopes, what gets fetched, canvas architecture |
 | [Jira Plugin](docs/plugins/jira.md) | Setup, JQL filters, priority mapping |
 | [Granola Plugin](docs/plugins/granola.md) | Setup, cache location, limitations |
 | [Building a Plugin](docs/plugins/building-a-plugin.md) | How to add a new integration |
