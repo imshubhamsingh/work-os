@@ -596,6 +596,40 @@ impl SlackClient {
         Ok(result)
     }
 
+    async fn format_forwarded_message(
+        &mut self,
+        description: &mut String,
+        forwarded: &SlackMessageAttachment,
+    ) -> Result<()> {
+        let _ = writeln!(
+            description,
+            "  📎 Forwarded from: {}",
+            forwarded.from_url.as_deref().unwrap_or("unknown")
+        );
+
+        let author = if let Some(author_id) = &forwarded.author_id {
+            let user = self.get_user_info(author_id).await?;
+            user.real_name.unwrap_or_else(|| user.name.clone())
+        } else {
+            forwarded
+                .author_name
+                .as_deref()
+                .unwrap_or("Unknown")
+                .to_string()
+        };
+
+        let _ = writeln!(description, "     Original author: {}", author);
+
+        if let Some(content) = forwarded.text.as_ref().or(forwarded.fallback.as_ref()) {
+            if !content.is_empty() {
+                let msg = self.replace_user_id_with_handle(content).await?;
+                let _ = writeln!(description, "     Content: {}", msg);
+            }
+        }
+
+        Ok(())
+    }
+
     async fn build_description_from_messages(
         &mut self,
         channel_id: &str,
@@ -616,12 +650,21 @@ impl SlackClient {
 
             if self.seen_messages.insert(message_key) {
                 let ts = parse_ts(&msg.ts)
-                    .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+                    .map(|dt| {
+                        dt.with_timezone(&Local)
+                            .format("%b %d, %l:%M %p")
+                            .to_string()
+                    })
                     .unwrap_or_default();
                 let _ = writeln!(description, "[{}] {}: {}", ts, author.name, text);
                 let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
                 if !reactions.is_empty() {
                     let _ = writeln!(description, "  Reactions:{}", reactions);
+                }
+
+                if let Some(forwarded) = msg.get_forwarded_message() {
+                    self.format_forwarded_message(&mut description, forwarded)
+                        .await?;
                 }
             }
         }
@@ -646,12 +689,21 @@ impl SlackClient {
             let text = self.replace_user_id_with_handle(&msg.text).await?;
 
             let ts = parse_ts(&msg.ts)
-                .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+                .map(|dt| {
+                    dt.with_timezone(&Local)
+                        .format("%b %d, %l:%M %p")
+                        .to_string()
+                })
                 .unwrap_or_default();
             let _ = writeln!(description, "[{}] {}: {}", ts, author.name, text);
             let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
             if !reactions.is_empty() {
                 let _ = writeln!(description, "  Reactions:{}", reactions);
+            }
+
+            if let Some(forwarded) = msg.get_forwarded_message() {
+                self.format_forwarded_message(&mut description, forwarded)
+                    .await?;
             }
 
             let has_thread = match &msg.thread_ts {
@@ -712,12 +764,21 @@ impl SlackClient {
             if !author.is_unknown() {
                 let msg = self.replace_user_id_with_handle(&t.text).await?;
                 let ts = parse_ts(&t.ts)
-                    .map(|dt| dt.with_timezone(&Local).format("%b %d, %l:%M %p").to_string())
+                    .map(|dt| {
+                        dt.with_timezone(&Local)
+                            .format("%b %d, %l:%M %p")
+                            .to_string()
+                    })
                     .unwrap_or_default();
                 let _ = writeln!(description, "[{}] {}: {}", ts, author.name, msg);
                 let reactions = self.format_reactions(t.reactions.as_ref()).await?;
                 if !reactions.is_empty() {
                     let _ = writeln!(description, "  Reactions:{}", reactions);
+                }
+
+                if let Some(forwarded) = t.get_forwarded_message() {
+                    self.format_forwarded_message(&mut description, forwarded)
+                        .await?;
                 }
             }
         }

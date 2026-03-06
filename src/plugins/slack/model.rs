@@ -73,6 +73,40 @@ pub struct SlackMessage {
     pub reply_count: u32,
     #[serde(default)]
     pub reactions: Option<Vec<SlackReaction>>,
+    #[serde(default)]
+    pub attachments: Option<Vec<SlackMessageAttachment>>,
+}
+
+impl SlackMessage {
+    pub fn get_forwarded_message(&self) -> Option<&SlackMessageAttachment> {
+        self.attachments
+            .as_ref()?
+            .iter()
+            .find(|att| att.is_forwarded_message())
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SlackMessageAttachment {
+    pub ts: Option<String>,
+    pub channel_id: Option<String>,
+    pub author_id: Option<String>,
+    pub author_name: Option<String>,
+    #[serde(default)]
+    pub is_share: bool,
+    #[serde(default)]
+    pub is_msg_unfurl: bool,
+    #[serde(default)]
+    pub is_reply_unfurl: bool,
+    pub from_url: Option<String>,
+    pub text: Option<String>,
+    pub fallback: Option<String>,
+}
+
+impl SlackMessageAttachment {
+    pub fn is_forwarded_message(&self) -> bool {
+        self.is_share && self.is_msg_unfurl && self.from_url.is_some()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -197,4 +231,15 @@ pub struct SlackThreadMessage {
     pub reply_count: Option<u32>,
     #[serde(default)]
     pub reactions: Option<Vec<SlackReaction>>,
+    #[serde(default)]
+    pub attachments: Option<Vec<SlackMessageAttachment>>,
+}
+
+impl SlackThreadMessage {
+    pub fn get_forwarded_message(&self) -> Option<&SlackMessageAttachment> {
+        self.attachments
+            .as_ref()?
+            .iter()
+            .find(|att| att.is_forwarded_message())
+    }
 }
