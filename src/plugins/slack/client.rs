@@ -53,12 +53,12 @@ impl SlackClient {
     pub async fn get_all_messages(&mut self) -> Result<Vec<Message>> {
         let mut all_messages = Vec::new();
 
-        // all_messages.extend(self.get_all_channel_messages().await?);
-        // all_messages.extend(self.get_all_mentions(None).await?);
-        // all_messages.extend(self.get_all_my_messages().await?);
-        // all_messages.extend(self.get_all_dms().await?);
-        // all_messages.extend(self.get_all_group_dms().await?);
-        // all_messages.extend(self.get_all_keywords_messages().await?);
+        all_messages.extend(self.get_all_channel_messages().await?);
+        all_messages.extend(self.get_all_mentions(None).await?);
+        all_messages.extend(self.get_all_my_messages().await?);
+        all_messages.extend(self.get_all_dms().await?);
+        all_messages.extend(self.get_all_group_dms().await?);
+        all_messages.extend(self.get_all_keywords_messages().await?);
         all_messages.extend(self.get_all_canvases().await?);
 
         all_messages.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
@@ -113,7 +113,7 @@ impl SlackClient {
             let message = Self::build_message(
                 &channel.id,
                 title,
-                format!("https://slack.com/archives/{}", channel.id),
+                slack_channel_url(&channel.id),
                 description,
                 updated_at,
             );
@@ -149,7 +149,7 @@ impl SlackClient {
             let message = Self::build_message(
                 &channel.id,
                 title.clone(),
-                format!("https://slack.com/archives/{}", channel.id),
+                slack_channel_url(&channel.id),
                 description,
                 updated_at,
             );
@@ -185,7 +185,7 @@ impl SlackClient {
             let message = Self::build_message(
                 &channel_id,
                 channel_title,
-                format!("https://slack.com/archives/{}", channel_id),
+                slack_channel_url(channel_id),
                 description,
                 updated_at,
             );
@@ -685,7 +685,21 @@ impl SlackClient {
                             .to_string()
                     })
                     .unwrap_or_default();
-                let _ = writeln!(description, "[{}] {}: {}", ts, author.name, text);
+
+                let saved_for_later = msg
+                    .saved
+                    .as_ref()
+                    .filter(|s| !s.is_archived)
+                    .map(|s| {
+                        format_saved_for_later(s, channel_id, &msg.ts, msg.thread_ts.as_deref())
+                    })
+                    .unwrap_or_default();
+
+                let _ = writeln!(
+                    description,
+                    "[{}] {}: {}{}",
+                    ts, author.name, text, saved_for_later
+                );
                 let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
                 if !reactions.is_empty() {
                     let _ = writeln!(description, "  Reactions:{}", reactions);
@@ -724,7 +738,20 @@ impl SlackClient {
                         .to_string()
                 })
                 .unwrap_or_default();
-            let _ = writeln!(description, "[{}] {}: {}", ts, author.name, text);
+
+            let saved_for_later = msg
+                .saved
+                .as_ref()
+                .filter(|s| !s.is_archived)
+                .map(|s| format_saved_for_later(s, channel_id, &msg.ts, msg.thread_ts.as_deref()))
+                .unwrap_or_default();
+
+            let _ = writeln!(
+                description,
+                "[{}] {}: {}{}",
+                ts, author.name, text, saved_for_later
+            );
+
             let reactions = self.format_reactions(msg.reactions.as_ref()).await?;
             if !reactions.is_empty() {
                 let _ = writeln!(description, "  Reactions:{}", reactions);
@@ -799,7 +826,19 @@ impl SlackClient {
                             .to_string()
                     })
                     .unwrap_or_default();
-                let _ = writeln!(description, "[{}] {}: {}", ts, author.name, msg);
+
+                let saved_for_later = t
+                    .saved
+                    .as_ref()
+                    .filter(|s| !s.is_archived)
+                    .map(|s| format_saved_for_later(s, channel_id, &t.ts, t.thread_ts.as_deref()))
+                    .unwrap_or_default();
+
+                let _ = writeln!(
+                    description,
+                    "[{}] {}: {}{}",
+                    ts, author.name, msg, saved_for_later
+                );
                 let reactions = self.format_reactions(t.reactions.as_ref()).await?;
                 if !reactions.is_empty() {
                     let _ = writeln!(description, "  Reactions:{}", reactions);
@@ -850,6 +889,39 @@ fn parse_ts(ts: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_str(ts, "%s.%f")
         .ok()
         .map(|dt| dt.into())
+}
+
+fn slack_channel_url(channel_id: &str) -> String {
+    format!("https://slack.com/archives/{}", channel_id)
+}
+
+fn slack_message_url(channel_id: &str, ts: &str, thread_ts: Option<&str>) -> String {
+    let ts_clean = ts.replace('.', "");
+    match thread_ts {
+        Some(tts) if tts != ts => format!(
+            "https://slack.com/archives/{}/p{}?thread_ts={}",
+            channel_id, ts_clean, tts
+        ),
+        _ => format!("https://slack.com/archives/{}/p{}", channel_id, ts_clean),
+    }
+}
+
+fn format_saved_for_later(
+    saved: &SlackSaved,
+    channel_id: &str,
+    ts: &str,
+    thread_ts: Option<&str>,
+) -> String {
+    let due = saved
+        .due_at()
+        .map(|dt| {
+            dt.with_timezone(&Local)
+                .format("%Y-%m-%d %I:%M %p")
+                .to_string()
+        })
+        .unwrap_or_else(|| "no due date".to_string());
+    let url = slack_message_url(channel_id, ts, thread_ts);
+    format!(" >>> ⏰ REMIND BY {due} (state: {}) | {url}", saved.state)
 }
 
 fn extract_parent_ts(permalink: &str) -> Option<String> {

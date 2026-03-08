@@ -1,4 +1,7 @@
-use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveTime, TimeDelta, Utc, Weekday};
+use chrono::{
+    DateTime, Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Utc,
+    Weekday,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -79,22 +82,20 @@ impl DateRange {
         }
     }
 
-    pub fn custom(from: &str, to: &str) -> Result<Self, String> {
-        let start = NaiveDate::parse_from_str(from, "%Y-%m-%d")
-            .map_err(|e| format!("Invalid 'from' date: {}", e))?
-            .and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
-            .and_utc();
+    pub fn custom(from: &str, to: Option<&str>) -> Result<Self, String> {
+        let start = parse_local_datetime(from, NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+            .map_err(|e| format!("Invalid 'from' date: {}", e))?;
 
-        let end = NaiveDate::parse_from_str(to, "%Y-%m-%d")
-            .map_err(|e| format!("Invalid 'to' date: {}", e))?
-            .and_time(NaiveTime::from_hms_opt(23, 59, 59).unwrap())
-            .and_utc();
+        let end = match to {
+            Some(to_str) => {
+                parse_local_datetime(to_str, NaiveTime::from_hms_opt(23, 59, 59).unwrap())
+                    .map_err(|e| format!("Invalid 'to' date: {}", e))?
+            }
+            None => Utc::now(),
+        };
 
         if end < start {
-            return Err(format!(
-                "'to' date ({}) must be after 'from' date ({})",
-                to, from
-            ));
+            return Err(format!("'to' date must be after 'from' date"));
         }
 
         Ok(Self {
@@ -107,7 +108,10 @@ impl DateRange {
     pub fn describe(&self) -> String {
         match self.mode {
             RunMode::Today => "today".to_string(),
-            RunMode::SinceLastRun => format!("since {}", self.start.with_timezone(&Local).format("%Y-%m-%d %H:%M")),
+            RunMode::SinceLastRun => format!(
+                "since {}",
+                self.start.with_timezone(&Local).format("%Y-%m-%d %H:%M")
+            ),
             RunMode::Weekend => "weekend (Fri-Sun)".to_string(),
             RunMode::Days(n) => format!("last {} days", n),
             RunMode::Custom => format!(
@@ -140,14 +144,13 @@ impl DateRange {
         run_mode: &str,
         state: &WorkOsState,
     ) -> Result<DateRange, WorkOsError> {
-        if let (Some(from), Some(to)) = (from, to) {
-            return DateRange::custom(from, to).map_err(WorkOsError::Config);
-        }
-
         if from.is_some() || to.is_some() {
-            return Err(WorkOsError::Config(
-                "Both --from and --to are required for custom range".to_string(),
-            ));
+            if to.is_some() && from.is_none() {
+                return Err(WorkOsError::Config(
+                    "--to requires --from to also be specified".to_string(),
+                ));
+            }
+            return DateRange::custom(from.unwrap(), to).map_err(WorkOsError::Config);
         }
 
         match run_mode {
@@ -181,6 +184,18 @@ impl std::fmt::Display for DateRange {
             self.end.format("%Y-%m-%d %H:%M"),
         )
     }
+}
+
+fn parse_local_datetime(s: &str, default_time: NaiveTime) -> Result<DateTime<Utc>, String> {
+    let naive = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M")
+        .or_else(|_| NaiveDate::parse_from_str(s, "%Y-%m-%d").map(|d| d.and_time(default_time)))
+        .map_err(|_| "expected format YYYY-MM-DD or YYYY-MM-DD HH:MM".to_string())?;
+
+    Local
+        .from_local_datetime(&naive)
+        .single()
+        .map(|dt| dt.to_utc())
+        .ok_or_else(|| format!("ambiguous or invalid local time: {}", s))
 }
 
 fn parse_days(mode: &str) -> Result<u32, WorkOsError> {

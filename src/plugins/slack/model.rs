@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlackConfig {
@@ -54,14 +54,6 @@ pub struct SlackChannelPurpose {
     // pub last_set: u64,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct SlackReaction {
-    pub name: String,
-    pub count: u32,
-    #[serde(default)]
-    pub users: Vec<String>,
-}
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct SlackMessage {
     // #[serde(rename = "type")]
@@ -78,6 +70,8 @@ pub struct SlackMessage {
     pub reactions: Option<Vec<SlackReaction>>,
     #[serde(default)]
     pub attachments: Option<Vec<SlackMessageAttachment>>,
+    #[serde(default)]
+    pub saved: Option<SlackSaved>,
 }
 
 impl SlackMessage {
@@ -86,6 +80,31 @@ impl SlackMessage {
             .as_ref()?
             .iter()
             .find(|att| att.is_forwarded_message())
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SlackReaction {
+    pub name: String,
+    pub count: u32,
+    #[serde(default)]
+    pub users: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SlackSaved {
+    pub is_archived: bool,
+    pub date_completed: u64,
+    pub date_due: u64,
+    pub state: String,
+}
+
+impl SlackSaved {
+    pub fn due_at(&self) -> Option<chrono::DateTime<chrono::Utc>> {
+        if self.date_due == 0 {
+            return None;
+        }
+        chrono::DateTime::from_timestamp(self.date_due as i64, 0)
     }
 }
 
@@ -233,9 +252,13 @@ pub struct SlackThreadMessage {
     pub ts: String,
     pub reply_count: Option<u32>,
     #[serde(default)]
+    pub thread_ts: Option<String>,
+    #[serde(default)]
     pub reactions: Option<Vec<SlackReaction>>,
     #[serde(default)]
     pub attachments: Option<Vec<SlackMessageAttachment>>,
+    #[serde(default)]
+    pub saved: Option<SlackSaved>,
 }
 
 impl SlackThreadMessage {
@@ -281,8 +304,7 @@ impl SlackCanvas {
     }
 
     pub fn updated_at(&self) -> chrono::DateTime<chrono::Utc> {
-        chrono::DateTime::from_timestamp(self.updated as i64, 0)
-            .unwrap_or_else(chrono::Utc::now)
+        chrono::DateTime::from_timestamp(self.updated as i64, 0).unwrap_or_else(chrono::Utc::now)
     }
 }
 

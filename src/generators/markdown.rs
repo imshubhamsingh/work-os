@@ -112,6 +112,7 @@ pub fn get_message_icon(message: &Message) -> String {
         MessageType::Ticket => "🎫",
         MessageType::Statistics => "📊",
         MessageType::MOM => "🎤",
+        MessageType::Canvas => "🖼️",
         MessageType::Other(_) => "📌",
     };
     icon.to_string()
