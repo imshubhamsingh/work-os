@@ -209,7 +209,7 @@ impl GithubClient {
     }
 
     async fn get_all_pr_messages_lite(&self) -> Result<Vec<Message>> {
-        let authored_query = self.build_pr_query(SearchType::Author);
+        let authored_query = self.build_pr_query(SearchType::Involved);
         let prs = self.get_pr_list(&authored_query).await?;
 
         let messages = prs
@@ -252,7 +252,7 @@ impl GithubClient {
     ) -> Result<Vec<PrCommit>> {
         use octocrab::Page;
 
-        let route = format!("/repos/{}/pulls/{}/commits?per_page=500", repo, pr_number);
+        let route = format!("/repos/{}/pulls/{}/commits?per_page=5000", repo, pr_number);
         println!("API call to Github: {}", route);
 
         let first_page: Page<octocrab::models::repos::RepoCommit> = self

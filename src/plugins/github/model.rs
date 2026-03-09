@@ -122,14 +122,14 @@ pub struct PrCommit {
 
 pub enum SearchType {
     Involved,
-    Author,
+    // Author,
 }
 
 impl std::fmt::Display for SearchType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SearchType::Involved => write!(f, "involves"),
-            SearchType::Author => write!(f, "author"),
+            // SearchType::Author => write!(f, "author"),
         }
     }
 }
