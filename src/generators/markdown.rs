@@ -2,6 +2,7 @@ use chrono::Local;
 
 use crate::core::message::{PersonRole, Message, MessageType};
 use crate::error::Result;
+use crate::models::date_range::DateRange;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -35,6 +36,9 @@ impl MarkdownGenerator {
 
     fn build_markdown(&self, messages: &[Message]) -> String {
         let mut md = String::new();
+
+        let range = DateRange::get();
+        md.push_str(&format!("Date range: {}\n\n", range.describe()));
 
         if messages.is_empty() {
             return md;
