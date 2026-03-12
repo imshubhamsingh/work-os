@@ -57,6 +57,7 @@ pub enum MessageType {
     Statistics,
     MOM,
     Canvas,
+    Coralogix,
     Other(String),
 }
 
@@ -151,6 +152,7 @@ impl MessageType {
             MessageType::Statistics => "statistics",
             MessageType::MOM => "mom",
             MessageType::Canvas => "canvas",
+            MessageType::Coralogix => "coralogix",
             MessageType::Other(name) => name,
         }
     }

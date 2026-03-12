@@ -22,6 +22,9 @@ pub enum WorkOsError {
 
     #[error("Granola error: {0}")]
     Granola(String),
+
+    #[error("Coralogix error: {0}")]
+    Coralogix(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkOsError>;

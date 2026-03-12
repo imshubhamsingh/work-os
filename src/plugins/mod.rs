@@ -1,3 +1,4 @@
+pub mod coralogix;
 pub mod github;
 pub mod granola;
 pub mod jira;
@@ -7,6 +8,7 @@ use crate::core::plugin::Plugin;
 use crate::core::registry::PluginRegistry;
 use crate::error::Result;
 use crate::models::config::WorkOsConfig;
+use crate::plugins::coralogix::CoralogixPlugin;
 use crate::plugins::github::GithubPlugin;
 use crate::plugins::granola::GranolaPlugin;
 use crate::plugins::jira::JiraPlugin;
@@ -56,6 +58,16 @@ pub fn create_registry(config: &WorkOsConfig) -> Result<PluginRegistry> {
     }
     registry.register(Box::new(granola_plugin));
 
+    let mut coralogix_plugin = CoralogixPlugin::new();
+    if let Some(coralogix_config) = config.get_plugin("coralogix") {
+        if coralogix_config.enabled {
+            if let Err(e) = coralogix_plugin.configure_from_values(&coralogix_config.values, &output_path) {
+                eprintln!("Warning: Failed to configure Coralogix: {}", e);
+            }
+        }
+    }
+    registry.register(Box::new(coralogix_plugin));
+
     Ok(registry)
 }
 
@@ -65,5 +77,6 @@ pub fn get_all_plugins() -> Vec<Box<dyn Plugin>> {
         Box::new(SlackPlugin::new()),
         Box::new(JiraPlugin::new()),
         Box::new(GranolaPlugin::new()),
+        Box::new(CoralogixPlugin::new()),
     ]
 }

@@ -13,6 +13,7 @@ Work-OS is a Rust CLI that pulls together your:
 - 🔀 GitHub PRs, issues, and reviews
 - 🎫 Jira tickets and sprints
 - 🍥 Granola meeting notes (transcripts & summaries) - highly experimental and macos only
+- 🚨 Coralogix production error logs with trend analysis
 
 ...and gives you a clean, unified view. One command, all your tasks. Simple.
 
@@ -85,11 +86,16 @@ work-os config set jira token YOUR_JIRA_API_TOKEN
 # Granola (highly experimental, macos only) - no configuration needed!
 # Just install Granola and it will automatically read from your local cache
 
+# Configure Coralogix
+work-os config set coralogix api_key YOUR_LOGS_QUERY_API_KEY
+work-os config set coralogix domain https://yourteam.coralogix.com
+work-os config set coralogix application_names your-app-name
+
 # Get your stuff
 work-os sync
 ```
 
-That's it! See the plugin setup guides: [GitHub](docs/plugins/github.md) · [Slack](docs/plugins/slack.md) · [Jira](docs/plugins/jira.md) · [Granola](docs/plugins/granola.md)
+That's it! See the plugin setup guides: [GitHub](docs/plugins/github.md) · [Slack](docs/plugins/slack.md) · [Jira](docs/plugins/jira.md) · [Granola](docs/plugins/granola.md) · [Coralogix](docs/plugins/coralogix.md)
 
 ## 💡 Cool Things You Can Do
 
@@ -108,6 +114,9 @@ work-os sync --plugins jira
 
 # Sync meeting notes from Granola
 work-os sync --plugins granola
+
+# Check production errors from Coralogix
+work-os sync --plugins coralogix
 
 # GitHub + Jira only (the developer combo)
 work-os sync --plugins github,jira
@@ -267,6 +276,7 @@ Work-OS doesn't just dump data - it makes it look good:
 | [Slack Plugin](docs/plugins/slack.md) | Setup, OAuth scopes, what gets fetched, canvas architecture |
 | [Jira Plugin](docs/plugins/jira.md) | Setup, JQL filters, priority mapping |
 | [Granola Plugin](docs/plugins/granola.md) | Setup, cache location, limitations |
+| [Coralogix Plugin](docs/plugins/coralogix.md) | Setup, API key, JSONL output, error trend analysis |
 | [Building a Plugin](docs/plugins/building-a-plugin.md) | How to add a new integration |
 
 ## 🔮 Planned Integrations
