@@ -22,10 +22,12 @@ flowchart TD
     Registry --> Slack
     Registry --> Jira
     Registry --> Granola
+    Registry --> Coralogix["🚨 Coralogix Plugin"]
     GitHub -->|Vec<Message>| Core
     Slack -->|Vec<Message>| Core
     Jira -->|Vec<Message>| Core
     Granola -->|Vec<Message>| Core
+    Coralogix -->|Vec<Message> + JSONL| Core
     Core --> TermOutput
     Core --> JSONOutput
     Core --> MDOutput
@@ -41,7 +43,7 @@ Everything in Work-OS becomes a `Message`. It is the single unified model passed
 Message {
   id          — unique key: "source:type:id"
   source      — "github" | "slack" | "jira" | "granola"
-  message_type — PullRequest | Issue | Review | Message | Ticket | Statistics | MOM
+  message_type — PullRequest | Issue | Review | Message | Ticket | Statistics | MOM | Canvas | Coralogix
   title
   description
   url
@@ -127,8 +129,10 @@ src/
     ├── github/           — GitHub plugin
     ├── slack/            — Slack plugin
     ├── jira/             — Jira plugin
-    └── granola/          — Granola plugin
+    ├── granola/          — Granola plugin
+    └── coralogix/        — Coralogix plugin
 ```
+
 
 ## Configuration Storage
 

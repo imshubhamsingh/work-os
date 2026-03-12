@@ -56,6 +56,12 @@ priority = "medium"
 
 [plugins.granola]
 enabled = true
+
+[plugins.coralogix]
+enabled = true
+api_key = "your-logs-query-api-key"
+domain = "https://yourteam.coralogix.com"
+application_names = ["my-backend-service", "my-worker-service"]
 ```
 
 ---
@@ -141,6 +147,21 @@ assignee = currentUser() AND labels = blocked
 | `enabled` | ✅ | `true` / `false` |
 
 No other configuration needed — Granola reads from a fixed local cache path.
+
+---
+
+## `[plugins.coralogix]`
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `enabled` | ✅ | `true` / `false` |
+| `api_key` | ✅ | Coralogix Logs Query API key — in Coralogix: **Data Flow → API Keys → Logs Query Key** |
+| `domain` | ✅ | Your Coralogix dashboard URL, e.g. `https://yourteam.coralogix.com` |
+| `application_names` | ✅ | One or more application names to query (comma-separated via CLI, array in TOML) |
+
+The plugin queries ERROR-severity production logs for the configured applications over the current sync date range. Results are written to `{base_path}/{markdown_path}/{date}/coralogix.jsonl` (append-only, deduped by log ID) and a per-application summary message is produced in the sync output.
+
+See [Coralogix Plugin](plugins/coralogix.md) for full details.
 
 ---
 

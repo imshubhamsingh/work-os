@@ -136,7 +136,7 @@ work-os stats --type ai-code --mode weekly
 Here's where it gets interesting. After `work-os sync` generates the raw markdown, I use **Claude Code with custom templates** to process it into actionable daily briefs.
 
 **My complete stack:**
-1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, Jira, and Granola
+1. **Work-OS** (Rust CLI) → Syncs tasks from GitHub, Slack, Jira, Granola, and Coralogix
 2. **Hook script** (`scripts/ai-effort.mjs`) → Captures every Claude Code / Cursor prompt into `ai-sessions.jsonl` alongside the sync files
 3. **Claude Code** (AI) → Processes raw data with custom templates
 4. **Obsidian** (Markdown) → Stores and organizes my daily briefs, weekly reports and follow-ups
@@ -146,7 +146,11 @@ I've set up custom commands (in `prompts`) that:
 - Extract actionable items and categorize them (Must Do, Reviews, Follow-ups)
 - Detect release-critical PRs and blockers
 - Track carryovers from previous days
+- Surface production errors with trend analysis and cross-reference them against Slack to catch user-reported incidents
 - Generate a clean, prioritized daily brief in my Obsidian vault
+
+**Production error monitoring:**
+Every sync writes production ERROR logs from Coralogix to a daily JSONL file. The daily brief automatically includes a per-application error summary — recurring errors with trend arrows, one-offs, new/resolved since the previous day, and a Patterns section. If any Slack thread mentions a service or error that matches a Coralogix error, it appears under **Reported by Users in Slack** with both the Slack link and a direct Coralogix deep-link. No manual log-checking needed.
 
 **Quick example:**
 ```bash

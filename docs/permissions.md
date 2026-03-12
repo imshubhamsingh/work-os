@@ -12,6 +12,7 @@ All credentials, token scopes, and system permissions required to run Work-OS, c
 | Slack | User token (`xoxp-...`) | 12 user scopes (see below) |
 | Jira | API token (Basic Auth) | Browse Projects + View Issues per project |
 | Granola | None — local filesystem | Read access to `~/Library/Application Support/Granola/` |
+| Coralogix | Logs Query API key | Read-only access to logs via DataPrime API |
 
 ---
 
@@ -124,6 +125,30 @@ This path is inside your own user Library directory and requires no special perm
 **If you get empty results from Granola,** check:
 - Granola is installed and has recorded at least one meeting
 - Your terminal emulator has **Full Disk Access** — System Settings → Privacy & Security → Full Disk Access
+
+---
+
+## Coralogix
+
+**Token type:** Logs Query API key
+
+Create at: Your Coralogix dashboard → **Data Flow → API Keys → Logs Query Key**
+
+This is a **read-only** key scoped specifically to log queries. It is distinct from the Send-Your-Data key (ingestion) and the Alerts API key — do not use those.
+
+| What it accesses | Details |
+|------------------|---------|
+| DataPrime query API | `POST https://api.eu1.coralogix.com/api/v1/dataprime/query` |
+| Log records | ERROR-severity logs for your configured application names, production environment only |
+| Log fields | Timestamp, severity, body, error message, service, trace/span IDs, environment |
+
+> The API key is region-specific. If your Coralogix account is in a different region (e.g. US1, AP1), update the endpoint accordingly — but the key type and permissions are the same.
+
+### What these permissions access
+
+- Production ERROR logs for the applications you configure
+- Log record metadata (timestamp, severity, logid for deduplication)
+- No write access — the plugin only queries, never ingests
 
 ---
 
