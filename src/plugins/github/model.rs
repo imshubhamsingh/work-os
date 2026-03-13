@@ -118,6 +118,7 @@ pub struct PrCommit {
     pub date: DateTime<Utc>,
     pub additions: u64,
     pub deletions: u64,
+    pub author: String,
 }
 
 pub enum SearchType {

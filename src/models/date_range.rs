@@ -106,20 +106,14 @@ impl DateRange {
     }
 
     pub fn describe(&self) -> String {
-        match self.mode {
-            RunMode::Today => "today".to_string(),
-            RunMode::SinceLastRun => format!(
-                "since {}",
-                self.start.with_timezone(&Local).format("%Y-%m-%d %H:%M")
-            ),
-            RunMode::Weekend => "weekend (Fri-Sun)".to_string(),
-            RunMode::Days(n) => format!("last {} days", n),
-            RunMode::Custom => format!(
-                "{} to {}",
-                self.start.format("%Y-%m-%d"),
-                self.end.format("%Y-%m-%d")
-            ),
-        }
+        let start = self.start.with_timezone(&Local);
+        let end = self.end.with_timezone(&Local);
+        format!(
+            "{} to {} {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d"),
+            end.format("%H:%M")
+        )
     }
 
     pub fn init(range: DateRange) {
