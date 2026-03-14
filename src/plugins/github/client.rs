@@ -162,6 +162,7 @@ impl GithubClient {
             let commits_in_range: Vec<_> = commits
                 .iter()
                 .filter(|c| c.date >= date_range.start && c.date <= date_range.end)
+                .filter(|c| c.author.eq_ignore_ascii_case(&self.username))
                 .collect();
 
             if commits_in_range.is_empty() {
@@ -273,6 +274,8 @@ impl GithubClient {
                 continue;
             };
 
+            let author = commit.author.map(|a| a.login).unwrap_or_default();
+
             let commit_route = format!("/repos/{}/commits/{}", repo, commit.sha);
             let full_commit: octocrab::models::repos::RepoCommit = self
                 .octocrab
@@ -297,6 +300,7 @@ impl GithubClient {
                 date,
                 additions,
                 deletions,
+                author,
             });
         }
 
@@ -491,6 +495,7 @@ impl GithubClient {
     fn build_pr_query(&self, search_type: SearchType) -> String {
         let date_range = DateRange::get();
         let since = date_range.start.format("%Y-%m-%d");
+        let until = date_range.end.format("%Y-%m-%d");
 
         let org_filter = if !self.include_orgs.is_empty() {
             format!(
@@ -506,8 +511,8 @@ impl GithubClient {
         };
 
         format!(
-            "is:pr {}:{} updated:>={}{}",
-            search_type, self.username, since, org_filter
+            "is:pr {}:{} updated:{}..{}{}",
+            search_type, self.username, since, until, org_filter
         )
     }
 
