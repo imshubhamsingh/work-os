@@ -170,7 +170,7 @@ impl Plugin for JiraPlugin {
 
     async fn fetch_messages(&self) -> Result<Vec<Message>> {
         match &self.client {
-            Some(_client) => {
+            Some(_) => {
                 let mut client_clone = JiraClient::new(self.config.as_ref().unwrap())?;
                 client_clone.get_all_messages().await
             }

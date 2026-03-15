@@ -50,14 +50,6 @@ impl JiraClient {
             return Ok(Vec::new());
         }
 
-        self.test_connection().await.map_err(|_| {
-            WorkOsError::Jira(
-                "Authentication failed — token may be expired or invalid. \
-                 Run: work-os config set jira token <NEW_TOKEN>"
-                    .into(),
-            )
-        })?;
-
         let filters: Vec<(String, Priority, String)> = self
             .filters
             .iter()

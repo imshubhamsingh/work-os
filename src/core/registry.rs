@@ -36,8 +36,25 @@ impl PluginRegistry {
         let mut messages = Vec::new();
         for plugin_id in plugin_ids {
             if let Some(plugin) = self.get(plugin_id) {
+                if !plugin.is_configured() {
+                    continue;
+                }
+                match plugin.test_connection().await {
+                    Ok(true) => {}
+                    Ok(false) => {
+                        eprintln!(
+                            "Error fetching from {}: authentication failed — check your credentials",
+                            plugin.metadata().name
+                        );
+                        continue;
+                    }
+                    Err(e) => {
+                        eprintln!("Error fetching from {}: {}", plugin.metadata().name, e);
+                        continue;
+                    }
+                }
                 match plugin.fetch_messages().await {
-                    Ok(message) => messages.extend(message),
+                    Ok(msgs) => messages.extend(msgs),
                     Err(e) => {
                         eprintln!("Error fetching from {}: {}", plugin.metadata().name, e);
                     }
