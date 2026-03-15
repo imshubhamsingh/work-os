@@ -50,6 +50,14 @@ impl JiraClient {
             return Ok(Vec::new());
         }
 
+        self.test_connection().await.map_err(|_| {
+            WorkOsError::Jira(
+                "Authentication failed — token may be expired or invalid. \
+                 Run: work-os config set jira token <NEW_TOKEN>"
+                    .into(),
+            )
+        })?;
+
         let filters: Vec<(String, Priority, String)> = self
             .filters
             .iter()
@@ -70,12 +78,25 @@ impl JiraClient {
             .collect();
 
         let mut all_messages = Vec::new();
+        let mut failed = 0usize;
+        let total = filters.len();
 
         for (jql_with_date, priority, name) in filters {
             match self.search_issues(&jql_with_date, priority).await {
                 Ok(messages) => all_messages.extend(messages),
-                Err(e) => println!("Filter '{}' error: {}", name, e),
+                Err(e) => {
+                    eprintln!("  Jira filter '{}' failed: {}", name, e);
+                    failed += 1;
+                }
             }
+        }
+
+        if failed == total {
+            return Err(WorkOsError::Jira(
+                "All Jira filters failed — token may be expired or domain unreachable. \
+                 Run: work-os config set jira token <NEW_TOKEN>"
+                    .into(),
+            ));
         }
 
         all_messages = deduplicate_messages(all_messages);
@@ -152,7 +173,11 @@ impl JiraClient {
             "https://{}{}/{}",
             self.domain, JIRA_API_BASE_PATH, end_point
         );
-        println!("API call to Jira: {}", &url);
+        let jql_info = query
+            .and_then(|q| q.iter().find(|(k, _)| *k == "jql"))
+            .map(|(_, v)| format!(" | JQL: {}", v))
+            .unwrap_or_default();
+        println!("API call to Jira: {}{}", &url, jql_info);
 
         let mut request = self
             .http
