@@ -1,5 +1,5 @@
 use crate::cli::auth::{create_test_plugin_by_id, test_plugin_auth};
-use crate::core::plugin::ConfigFieldType;
+use crate::core::plugin::{AuthType, ConfigFieldType};
 use crate::error::WorkOsError;
 use crate::models::config::*;
 use crate::models::state::WorkOsState;
@@ -60,6 +60,15 @@ async fn configure_plugin_interactive(
     let meta = plugin.metadata();
     let schema = plugin.config_schema();
     let plugin_config = config.get_plugin_mut(meta.id);
+
+    // OAuth2 plugins: skip field prompting — auth is done via `work-os auth <plugin>`
+    if plugin.auth_type() == AuthType::OAuth2 {
+        plugin_config.enabled = true;
+        println!();
+        println!("{} {} enabled.", "✔".green(), meta.name);
+        println!("  Run `work-os auth {}` to complete authentication.", meta.id);
+        return Ok(());
+    }
 
     for field in &schema {
         let value = Terminal::prompt_for_field(field, plugin_config.values.get(field.name))?;

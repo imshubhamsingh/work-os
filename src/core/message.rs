@@ -58,6 +58,8 @@ pub enum MessageType {
     MOM,
     Canvas,
     Coralogix,
+    CalendarEvent,
+    GoogleTask,
     Other(String),
 }
 
@@ -153,6 +155,8 @@ impl MessageType {
             MessageType::MOM => "mom",
             MessageType::Canvas => "canvas",
             MessageType::Coralogix => "coralogix",
+            MessageType::CalendarEvent => "calendar_event",
+            MessageType::GoogleTask => "google_task",
             MessageType::Other(name) => name,
         }
     }

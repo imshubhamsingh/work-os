@@ -17,3 +17,5 @@
 | [💬 Slack](./plugins/slack.md) | DMs, mentions, channels, and keyword tracking |
 | [🎫 Jira](./plugins/jira.md) | Issues via JQL filters |
 | [🍥 Granola](./plugins/granola.md) | Meeting notes from local cache (macOS only) |
+| [🚨 Coralogix](./plugins/coralogix.md) | Production error logs with trend analysis |
+| [📅 Google](./plugins/google.md) | Calendar events and Tasks (OAuth2, shared auth) |

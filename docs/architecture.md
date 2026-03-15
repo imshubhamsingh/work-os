@@ -12,6 +12,10 @@ flowchart TD
     Slack["💬 Slack Plugin"]
     Jira["🎫 Jira Plugin"]
     Granola["🍥 Granola Plugin"]
+    Coralogix["🚨 Coralogix Plugin"]
+    GoogleAuth["🔑 Google Plugin\n(auth only)"]
+    GCal["📅 Google Calendar Plugin"]
+    GTasks["📋 Google Tasks Plugin"]
     Core["core::Message"]
     TermOutput["Terminal Output"]
     JSONOutput["JSON Output"]
@@ -22,12 +26,19 @@ flowchart TD
     Registry --> Slack
     Registry --> Jira
     Registry --> Granola
-    Registry --> Coralogix["🚨 Coralogix Plugin"]
+    Registry --> Coralogix
+    Registry --> GoogleAuth
+    Registry --> GCal
+    Registry --> GTasks
+    GoogleAuth -.->|shared OAuth token| GCal
+    GoogleAuth -.->|shared OAuth token| GTasks
     GitHub -->|Vec<Message>| Core
     Slack -->|Vec<Message>| Core
     Jira -->|Vec<Message>| Core
     Granola -->|Vec<Message>| Core
     Coralogix -->|Vec<Message> + JSONL| Core
+    GCal -->|Vec<Message>| Core
+    GTasks -->|Vec<Message>| Core
     Core --> TermOutput
     Core --> JSONOutput
     Core --> MDOutput
@@ -42,8 +53,8 @@ Everything in Work-OS becomes a `Message`. It is the single unified model passed
 ```
 Message {
   id          — unique key: "source:type:id"
-  source      — "github" | "slack" | "jira" | "granola"
-  message_type — PullRequest | Issue | Review | Message | Ticket | Statistics | MOM | Canvas | Coralogix
+  source      — "github" | "slack" | "jira" | "granola" | "google_calendar" | "google_tasks"
+  message_type — PullRequest | Issue | Review | Message | Ticket | Statistics | MOM | Canvas | Coralogix | CalendarEvent | GoogleTask
   title
   description
   url
@@ -130,7 +141,12 @@ src/
     ├── slack/            — Slack plugin
     ├── jira/             — Jira plugin
     ├── granola/          — Granola plugin
-    └── coralogix/        — Coralogix plugin
+    ├── coralogix/        — Coralogix plugin
+    └── google/           — Google plugins (shared OAuth)
+        ├── auth.rs       — OAuth2 flow, token refresh, token persistence
+        ├── mod.rs        — GooglePlugin (auth-only, owns the OAuth flow)
+        ├── calendar/     — Google Calendar plugin
+        └── tasks/        — Google Tasks plugin
 ```
 
 

@@ -13,6 +13,7 @@ All credentials, token scopes, and system permissions required to run Work-OS, c
 | Jira | API token (Basic Auth) | Browse Projects + View Issues per project |
 | Granola | None — local filesystem | Read access to `~/Library/Application Support/Granola/` |
 | Coralogix | Logs Query API key | Read-only access to logs via DataPrime API |
+| Google | OAuth2 (browser flow) | `calendar.readonly`, `tasks.readonly` |
 
 ---
 
@@ -149,6 +150,52 @@ This is a **read-only** key scoped specifically to log queries. It is distinct f
 - Production ERROR logs for the applications you configure
 - Log record metadata (timestamp, severity, logid for deduplication)
 - No write access — the plugin only queries, never ingests
+
+---
+
+## Google
+
+**Token type:** OAuth2 (browser-based flow)
+
+Authenticate with:
+
+```bash
+work-os auth google
+```
+
+This covers both `google_calendar` and `google_tasks` — one auth, both plugins.
+
+Google credentials (client ID + secret) are embedded at build time via `.cargo/config.toml`, not stored in `config.toml`. The per-user OAuth token is stored under `[plugins.google]` after authentication.
+
+### OAuth2 scopes requested
+
+| Scope | Plugin | Why |
+|-------|--------|-----|
+| `https://www.googleapis.com/auth/calendar.readonly` | Google Calendar | Read events from your primary calendar |
+| `https://www.googleapis.com/auth/tasks.readonly` | Google Tasks | Read task lists and tasks |
+
+Both scopes are read-only. Work-OS never creates, modifies, or deletes calendar events or tasks.
+
+### What these permissions access
+
+- Events on your primary Google Calendar within the sync date range
+- All task lists in your Google Tasks account
+- Incomplete tasks within each list (completed tasks are excluded)
+- Event metadata: title, time, attendees, RSVP status, meeting link, description
+- Task metadata: title, notes, due date, list name, subtask relationship
+
+### Token storage
+
+After authentication, the token is stored in `~/.work-os/config.toml` under `[plugins.google]`:
+
+```toml
+[plugins.google]
+access_token = "ya29...."
+refresh_token = "1//..."
+expires_at = 1749999999
+```
+
+The access token is refreshed automatically. The refresh token persists until you revoke access in your [Google Account settings](https://myaccount.google.com/permissions).
 
 ---
 

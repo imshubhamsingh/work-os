@@ -26,6 +26,10 @@ pub enum Commands {
 
     Auth {
         plugin: Option<String>,
+
+        /// Force re-authentication even if a valid token exists (for OAuth2 plugins)
+        #[arg(long, default_value_t = false)]
+        force: bool,
     },
 
     Sync {

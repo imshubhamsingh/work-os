@@ -118,6 +118,8 @@ pub fn get_message_icon(message: &Message) -> String {
         MessageType::MOM => "🎤",
         MessageType::Canvas => "🖼️",
         MessageType::Coralogix => "🚨",
+        MessageType::CalendarEvent => "📅",
+        MessageType::GoogleTask => "📋",
         MessageType::Other(_) => "📌",
     };
     icon.to_string()

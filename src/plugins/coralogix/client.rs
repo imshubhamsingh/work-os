@@ -91,6 +91,13 @@ impl CoralogixClient {
             }
         });
 
+        println!(
+            "API call to Coralogix: {} | query: {} | from: {} to: {}",
+            DATAPRIME_ENDPOINT,
+            query,
+            start.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+            end.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+        );
         let response = self
             .http
             .post(DATAPRIME_ENDPOINT)

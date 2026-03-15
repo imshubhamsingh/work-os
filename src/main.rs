@@ -25,7 +25,7 @@ async fn main() {
             }
             ConfigAction::List => cli::config::list().await,
         },
-        Commands::Auth { plugin } => cli::auth::test_all_plugin_auth(plugin).await,
+        Commands::Auth { plugin, force } => cli::auth::test_all_plugin_auth(plugin, force).await,
         Commands::Sync {
             json,
             plugins,

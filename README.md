@@ -14,6 +14,8 @@ Work-OS is a Rust CLI that pulls together your:
 - 🎫 Jira tickets and sprints
 - 🍥 Granola meeting notes (transcripts & summaries) - highly experimental and macos only
 - 🚨 Coralogix production error logs with trend analysis
+- 📅 Google Calendar events and upcoming meetings
+- 📋 Google Tasks across all your task lists
 
 ...and gives you a clean, unified view. One command, all your tasks. Simple.
 
@@ -91,11 +93,15 @@ work-os config set coralogix api_key YOUR_LOGS_QUERY_API_KEY
 work-os config set coralogix domain https://yourteam.coralogix.com
 work-os config set coralogix application_names your-app-name
 
+# Configure Google Calendar and Tasks (OAuth2 — one auth command covers both)
+# First add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .cargo/config.toml, then rebuild
+work-os auth google
+
 # Get your stuff
 work-os sync
 ```
 
-That's it! See the plugin setup guides: [GitHub](docs/plugins/github.md) · [Slack](docs/plugins/slack.md) · [Jira](docs/plugins/jira.md) · [Granola](docs/plugins/granola.md) · [Coralogix](docs/plugins/coralogix.md)
+That's it! See the plugin setup guides: [GitHub](docs/plugins/github.md) · [Slack](docs/plugins/slack.md) · [Jira](docs/plugins/jira.md) · [Granola](docs/plugins/granola.md) · [Coralogix](docs/plugins/coralogix.md) · [Google](docs/plugins/google.md)
 
 ## 💡 Cool Things You Can Do
 
@@ -117,6 +123,9 @@ work-os sync --plugins granola
 
 # Check production errors from Coralogix
 work-os sync --plugins coralogix
+
+# Sync upcoming calendar events and open tasks
+work-os sync --plugins google_calendar,google_tasks
 
 # GitHub + Jira only (the developer combo)
 work-os sync --plugins github,jira
@@ -281,12 +290,12 @@ Work-OS doesn't just dump data - it makes it look good:
 | [Jira Plugin](docs/plugins/jira.md) | Setup, JQL filters, priority mapping |
 | [Granola Plugin](docs/plugins/granola.md) | Setup, cache location, limitations |
 | [Coralogix Plugin](docs/plugins/coralogix.md) | Setup, API key, JSONL output, error trend analysis |
+| [Google Plugin](docs/plugins/google.md) | Setup, OAuth2 flow, Calendar events, Tasks, color labels |
 | [Building a Plugin](docs/plugins/building-a-plugin.md) | How to add a new integration |
 
 ## 🔮 Planned Integrations
 
 Plugins I want to add in the future:
-- **Google Calendar** — pull upcoming meetings and deadlines into your daily brief
 - **Google Docs / Sheets** — surface recently edited documents and spreadsheets
 - **Figma** — track design file updates and comments
 - **Notion** — sync tasks, pages, and databases

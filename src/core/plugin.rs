@@ -108,13 +108,36 @@ impl ConfigField {
 
 use std::any::Any;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum AuthType {
+    /// Simple token/API key for test connection directly
+    Token,
+    /// OAuth2 flow for interactive browser authentication
+    OAuth2,
+}
+
 #[async_trait]
 pub trait Plugin: Send + Sync {
     fn metadata(&self) -> PluginMetadata;
     fn is_configured(&self) -> bool;
     fn config_schema(&self) -> Vec<ConfigField>;
-    fn configure_from_values(&mut self, values: &HashMap<String, Value>, output_path: &PathBuf) -> Result<()>;
+    fn configure_from_values(
+        &mut self,
+        values: &HashMap<String, Value>,
+        output_path: &PathBuf,
+    ) -> Result<()>;
     async fn test_connection(&self) -> Result<bool>;
     async fn fetch_messages(&self) -> Result<Vec<Message>>;
     fn as_any(&self) -> &dyn Any;
+    fn auth_type(&self) -> AuthType {
+        AuthType::Token
+    }
+    async fn run_auth_flow(&self) -> Result<()> {
+        // Run interactive OAuth flow which is only used by OAuth2 plugins
+        Ok(())
+    }
+    async fn is_authenticated(&self) -> bool {
+        // For Oauth2, this will check for live token validity
+        self.is_configured()
+    }
 }

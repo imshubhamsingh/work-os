@@ -25,6 +25,9 @@ pub enum WorkOsError {
 
     #[error("Coralogix error: {0}")]
     Coralogix(String),
+
+    #[error("Google API error: {0}")]
+    Google(String),
 }
 
 pub type Result<T> = std::result::Result<T, WorkOsError>;

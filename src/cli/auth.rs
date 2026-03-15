@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use crate::core::plugin::Plugin;
+use crate::core::plugin::{AuthType, Plugin};
 use crate::error::{Result, WorkOsError};
 use crate::models::config::{PluginConfig, WorkOsConfig};
 use crate::plugins::get_all_plugins;
 use colored::*;
 use toml::Value;
 
-pub async fn test_all_plugin_auth(plugin_filter: Option<String>) -> Result<()> {
+pub async fn test_all_plugin_auth(plugin_filter: Option<String>, force: bool) -> Result<()> {
     let plugins = get_all_plugins();
     let config = WorkOsConfig::load()?;
     for plugin in plugins {
@@ -17,9 +17,66 @@ pub async fn test_all_plugin_auth(plugin_filter: Option<String>) -> Result<()> {
                 continue;
             }
         }
-        test_plugin_auth(plugin_id, config.get_plugin(plugin_id)).await?;
+
+        match plugin.auth_type() {
+            AuthType::Token => {
+                test_plugin_auth(plugin_id, config.get_plugin(plugin_id)).await?;
+            }
+            AuthType::OAuth2 => {
+                run_oauth_auth(plugin_id, &plugin, force).await?;
+            }
+        }
     }
 
+    Ok(())
+}
+
+async fn run_oauth_auth(_plugin_id: &str, plugin: &Box<dyn Plugin>, force: bool) -> Result<()> {
+    let meta = plugin.metadata();
+    println!("{} {} Authentication", meta.icon, meta.name);
+    println!("{}", "=".repeat(40));
+
+    if !plugin.is_configured() {
+        println!(
+            "{} {} is not available (credentials not embedded at build time).",
+            "⚠".yellow(),
+            meta.name
+        );
+        println!();
+        return Ok(());
+    }
+
+    if !force {
+        println!("Checking existing authentication...");
+        if plugin.is_authenticated().await {
+            println!("{} Already authenticated with {}.", "✔".green(), meta.name);
+            println!("  Use --force to re-authenticate.");
+            println!();
+            return Ok(());
+        }
+        println!("  No valid token found, starting OAuth flow...");
+        println!();
+    }
+
+    plugin.run_auth_flow().await?;
+
+    println!("Verifying authentication...");
+    match plugin.test_connection().await {
+        Ok(true) => {
+            println!("{} {} authenticated successfully!", "✔".green(), meta.name);
+        }
+        Ok(false) => {
+            println!(
+                "{} {} authentication may have failed. Try again.",
+                "✗".red(),
+                meta.name
+            );
+        }
+        Err(e) => {
+            println!("{} Authentication error: {}", "✗".red(), e);
+        }
+    }
+    println!();
     Ok(())
 }
 
