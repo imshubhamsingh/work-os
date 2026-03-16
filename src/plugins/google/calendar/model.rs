@@ -26,6 +26,8 @@ pub struct EventItem {
     pub organizer: Option<AttendeeItem>,
     pub attendees: Option<Vec<AttendeeItem>>,
     pub reminders: Option<RemindersItem>,
+    #[serde(rename = "workingLocationProperties")]
+    pub working_location_properties: Option<WorkingLocationProperties>,
 }
 
 #[derive(Deserialize)]
@@ -60,6 +62,31 @@ pub struct AttendeeItem {
     pub is_self: Option<bool>,
     #[allow(dead_code)]
     pub optional: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct WorkingLocationProperties {
+    #[serde(rename = "type")]
+    pub location_type: Option<String>,
+    // #[serde(rename = "homeOffice")]
+    // #[allow(dead_code)]
+    // pub home_office: Option<serde_json::Value>,
+    #[serde(rename = "officeLocation")]
+    pub office_location: Option<OfficeLocation>,
+    #[serde(rename = "customLocation")]
+    pub custom_location: Option<CustomLocation>,
+}
+
+#[derive(Deserialize)]
+pub struct OfficeLocation {
+    pub label: Option<String>,
+    #[serde(rename = "buildingId")]
+    pub building_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct CustomLocation {
+    pub label: Option<String>,
 }
 
 #[derive(Deserialize)]

@@ -3,7 +3,7 @@ use reqwest::Client;
 
 use crate::core::message::{Message, MessageStatus, MessageType, Priority};
 use crate::error::{Result, WorkOsError};
-use crate::plugins::google::auth::GoogleOAuthConfig;
+use crate::plugins::google::auth::{refresh_access_token, GoogleOAuthConfig};
 use crate::plugins::google::tasks::model::*;
 
 const TASKS_API_BASE: &str = "https://tasks.googleapis.com/tasks/v1";
@@ -11,6 +11,7 @@ const TASKS_API_BASE: &str = "https://tasks.googleapis.com/tasks/v1";
 pub struct GoogleTasksClient {
     http: Client,
     access_token: String,
+    refresh_token: Option<String>,
 }
 
 impl GoogleTasksClient {
@@ -18,6 +19,7 @@ impl GoogleTasksClient {
         Self {
             http: Client::new(),
             access_token: config.access_token.clone(),
+            refresh_token: config.refresh_token.clone(),
         }
     }
 
@@ -31,6 +33,21 @@ impl GoogleTasksClient {
             .send()
             .await
             .map_err(|e| WorkOsError::Google(format!("Connection test failed: {}", e)))?;
+
+        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+            if let Some(ref rt) = self.refresh_token {
+                let new_token = refresh_access_token(rt).await?;
+                let resp = self
+                    .http
+                    .get(&url)
+                    .bearer_auth(&new_token)
+                    .send()
+                    .await
+                    .map_err(|e| WorkOsError::Google(format!("Connection test failed after refresh: {}", e)))?;
+                return Ok(resp.status().is_success());
+            }
+        }
+
         Ok(resp.status().is_success())
     }
 

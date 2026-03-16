@@ -46,6 +46,21 @@ impl GoogleCalendarClient {
             .send()
             .await
             .map_err(|e| WorkOsError::Google(format!("Connection test failed: {}", e)))?;
+
+        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+            if let Some(ref rt) = self.refresh_token {
+                let new_token = refresh_access_token(rt).await?;
+                let resp = self
+                    .http
+                    .get(&url)
+                    .bearer_auth(&new_token)
+                    .send()
+                    .await
+                    .map_err(|e| WorkOsError::Google(format!("Connection test failed after refresh: {}", e)))?;
+                return Ok(resp.status().is_success());
+            }
+        }
+
         Ok(resp.status().is_success())
     }
 
@@ -214,6 +229,7 @@ impl GoogleCalendarClient {
             google_color_name,
             color_label,
             item.location.as_deref(),
+            item.working_location_properties.as_ref(),
             meeting_link.as_deref(),
             item.organizer.as_ref(),
             item.attendees.as_deref().unwrap_or(&[]),
@@ -293,6 +309,7 @@ fn build_description(
     google_color_name: Option<&str>,
     color_label: Option<&str>,
     location: Option<&str>,
+    working_location: Option<&WorkingLocationProperties>,
     meeting_link: Option<&str>,
     organizer: Option<&AttendeeItem>,
     attendees: &[AttendeeItem],
@@ -337,6 +354,26 @@ fn build_description(
 
     if let Some(loc) = location {
         lines.push(format!("Location: {}", loc));
+    }
+
+    if let Some(wl) = working_location {
+        let label = match wl.location_type.as_deref() {
+            Some("homeOffice") => "Home".to_string(),
+            Some("officeLocation") => wl
+                .office_location
+                .as_ref()
+                .and_then(|o| o.label.as_deref().or(o.building_id.as_deref()))
+                .unwrap_or("Office")
+                .to_string(),
+            Some("customLocation") => wl
+                .custom_location
+                .as_ref()
+                .and_then(|c| c.label.as_deref())
+                .unwrap_or("Custom")
+                .to_string(),
+            _ => "Unknown".to_string(),
+        };
+        lines.push(format!("Work Location: {}", label));
     }
 
     lines.push(String::new());
