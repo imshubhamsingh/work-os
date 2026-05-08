@@ -12,6 +12,7 @@ pub struct GoogleTasksClient {
     http: Client,
     access_token: String,
     refresh_token: Option<String>,
+    expires_at: Option<i64>,
 }
 
 impl GoogleTasksClient {
@@ -20,7 +21,23 @@ impl GoogleTasksClient {
             http: Client::new(),
             access_token: config.access_token.clone(),
             refresh_token: config.refresh_token.clone(),
+            expires_at: config.expires_at,
         }
+    }
+
+    async fn fresh_token(&self) -> crate::error::Result<String> {
+        let needs_refresh = self
+            .expires_at
+            .map(|exp| exp < chrono::Utc::now().timestamp() + 300)
+            .unwrap_or(false);
+
+        if needs_refresh {
+            if let Some(ref rt) = self.refresh_token {
+                return refresh_access_token(rt).await;
+            }
+        }
+
+        Ok(self.access_token.clone())
     }
 
     pub async fn test_connection(&self) -> Result<bool> {
@@ -56,12 +73,13 @@ impl GoogleTasksClient {
     // ============================
 
     pub async fn get_all_messages(&self) -> Result<Vec<Message>> {
+        let token = self.fresh_token().await?;
         let url = format!("{}/users/@me/lists", TASKS_API_BASE);
         println!("API call to Google Tasks: {}", &url);
         let resp = self
             .http
             .get(&url)
-            .bearer_auth(&self.access_token)
+            .bearer_auth(&token)
             .send()
             .await
             .map_err(|e| WorkOsError::Google(format!("Failed to fetch task lists: {}", e)))?;
@@ -79,7 +97,7 @@ impl GoogleTasksClient {
         let mut messages = Vec::new();
 
         for list in lists.items.unwrap_or_default() {
-            let tasks = self.fetch_tasks_for_list(&list.id).await?;
+            let tasks = self.fetch_tasks_for_list(&list.id, &token).await?;
             for task in tasks {
                 if let Some(msg) = build_message(task, &list.title) {
                     messages.push(msg);
@@ -94,7 +112,7 @@ impl GoogleTasksClient {
     // Google Tasks API
     // ============================
 
-    async fn fetch_tasks_for_list(&self, list_id: &str) -> Result<Vec<TaskItem>> {
+    async fn fetch_tasks_for_list(&self, list_id: &str, token: &str) -> Result<Vec<TaskItem>> {
         let url = format!("{}/lists/{}/tasks", TASKS_API_BASE, list_id);
         println!("API call to Google Tasks: {}", &url);
         let resp = self
@@ -105,7 +123,7 @@ impl GoogleTasksClient {
                 ("showDeleted", "false"),
                 ("showHidden", "false"),
             ])
-            .bearer_auth(&self.access_token)
+            .bearer_auth(token)
             .send()
             .await
             .map_err(|e| WorkOsError::Google(format!("Failed to fetch tasks: {}", e)))?;

@@ -15,26 +15,29 @@ use crate::plugins::granola::mom_writer::MomWriter;
 
 const GRANOLA_API_V1: &str = "https://api.granola.ai/v1";
 const GRANOLA_API_V2: &str = "https://api.granola.ai/v2";
+const CLIENT_VERSION: &str = "7.162.5";
 
 pub struct GranolaClient {
     http: Client,
     token: String,
+    refresh_token: String,
     mom_writer: MomWriter,
 }
 
 impl GranolaClient {
     pub fn new(config: &GranolaConfig) -> Result<Self> {
-        let token = Self::read_token()?;
+        let (token, refresh_token) = Self::read_tokens()?;
         let mom_writer = MomWriter::new(config.output_path.clone());
         Ok(Self {
             http: Client::new(),
             token,
+            refresh_token,
             mom_writer,
         })
     }
 
     pub fn is_available() -> bool {
-        Self::read_token().is_ok()
+        Self::read_tokens().is_ok()
     }
 
     pub async fn test_connection(&self) -> Result<bool> {
@@ -118,7 +121,7 @@ impl GranolaClient {
     // ============================
 
     async fn fetch_documents(
-        &self,
+        &mut self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<Vec<GranolaDocument>> {
@@ -175,7 +178,7 @@ impl GranolaClient {
             .collect())
     }
 
-    async fn fetch_transcript(&self, document_id: &str) -> Result<Vec<TranscriptSegment>> {
+    async fn fetch_transcript(&mut self, document_id: &str) -> Result<Vec<TranscriptSegment>> {
         self.post(
             &format!("{}/get-document-transcript", GRANOLA_API_V1),
             &json!({ "document_id": document_id }),
@@ -183,7 +186,7 @@ impl GranolaClient {
         .await
     }
 
-    async fn fetch_panels(&self, document_id: &str) -> Result<Option<DocumentPanel>> {
+    async fn fetch_panels(&mut self, document_id: &str) -> Result<Option<DocumentPanel>> {
         let panels: Vec<DocumentPanel> = self
             .post(
                 &format!("{}/get-document-panels", GRANOLA_API_V1),
@@ -201,7 +204,7 @@ impl GranolaClient {
     // Auth
     // ============================
 
-    fn read_token() -> Result<String> {
+    fn read_tokens() -> Result<(String, String)> {
         let path = Self::supabase_path()?;
         let contents = std::fs::read_to_string(&path)
             .map_err(|e| WorkOsError::Granola(format!("Failed to read supabase.json: {}", e)))?;
@@ -212,7 +215,37 @@ impl GranolaClient {
             .ok_or_else(|| WorkOsError::Granola("No workos_tokens in supabase.json".into()))?;
         let tokens: WorkosTokens = serde_json::from_str(&tokens_str)
             .map_err(|e| WorkOsError::Granola(format!("Failed to parse workos_tokens: {}", e)))?;
-        Ok(tokens.access_token)
+        Ok((tokens.access_token, tokens.refresh_token))
+    }
+
+    async fn refresh_token(&mut self) -> Result<()> {
+        let body = serde_json::json!({ "refresh_token": self.refresh_token });
+        let resp = self
+            .http
+            .post(&format!("{}/refresh-access-token", GRANOLA_API_V1))
+            .header("X-Client-Version", CLIENT_VERSION)
+            .header("X-Granola-Platform", "macOS")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| WorkOsError::Granola(format!("Token refresh request failed: {}", e)))?;
+
+        if !resp.status().is_success() {
+            return Err(WorkOsError::Granola(format!(
+                "Token refresh failed with status {}",
+                resp.status()
+            )));
+        }
+
+        let new_tokens: WorkosTokens = resp
+            .json()
+            .await
+            .map_err(|e| WorkOsError::Granola(format!("Failed to parse refresh response: {}", e)))?;
+
+        self.token = new_tokens.access_token;
+        self.refresh_token = new_tokens.refresh_token;
+
+        Ok(())
     }
 
     fn supabase_path() -> Result<PathBuf> {
@@ -229,16 +262,32 @@ impl GranolaClient {
     // HTTP
     // ============================
 
-    async fn post<T: DeserializeOwned>(&self, url: &str, body: &serde_json::Value) -> Result<T> {
-        let resp = self
-            .http
+    async fn post<T: DeserializeOwned>(&mut self, url: &str, body: &serde_json::Value) -> Result<T> {
+        let resp = self.do_post(url, body).await?;
+
+        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+            println!("  ↻ Granola token expired, refreshing...");
+            self.refresh_token().await?;
+            let resp = self.do_post(url, body).await?;
+            return Self::parse_response(url, resp).await;
+        }
+
+        Self::parse_response(url, resp).await
+    }
+
+    async fn do_post(&self, url: &str, body: &serde_json::Value) -> Result<reqwest::Response> {
+        self.http
             .post(url)
             .bearer_auth(&self.token)
+            .header("X-Client-Version", CLIENT_VERSION)
+            .header("X-Granola-Platform", "macOS")
             .json(body)
             .send()
             .await
-            .map_err(|e| WorkOsError::Granola(format!("API request failed: {}", e)))?;
+            .map_err(|e| WorkOsError::Granola(format!("API request failed: {}", e)))
+    }
 
+    async fn parse_response<T: DeserializeOwned>(url: &str, resp: reqwest::Response) -> Result<T> {
         if !resp.status().is_success() {
             return Err(WorkOsError::Granola(format!(
                 "Granola API returned {} for {}",
@@ -247,8 +296,17 @@ impl GranolaClient {
             )));
         }
 
-        resp.json::<T>().await.map_err(|e| {
-            WorkOsError::Granola(format!("Failed to parse response from {}: {}", url, e))
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| WorkOsError::Granola(format!("Failed to read response from {}: {}", url, e)))?;
+
+        serde_json::from_slice::<T>(&bytes).map_err(|e| {
+            let preview = String::from_utf8_lossy(&bytes[..bytes.len().min(200)]);
+            WorkOsError::Granola(format!(
+                "Failed to parse response from {}: {} | body: {}",
+                url, e, preview
+            ))
         })
     }
 

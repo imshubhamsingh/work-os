@@ -17,6 +17,7 @@ pub struct SupabaseJson {
 #[derive(Debug, Deserialize)]
 pub struct WorkosTokens {
     pub access_token: String,
+    pub refresh_token: String,
 }
 
 // ============================
@@ -36,6 +37,7 @@ pub struct DocumentSetEntry {
 
 #[derive(Debug, Deserialize)]
 pub struct V2DocumentsResponse {
+    #[serde(default)]
     pub docs: Vec<GranolaDocument>,
 }
 
